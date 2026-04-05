@@ -105,10 +105,6 @@ export default function StoryEditor() {
       if (prev.includes(tagId)) {
         return prev.filter((t) => t !== tagId);
       }
-      if (prev.length >= 4) {
-        toast.error("You can select up to 4 tags");
-        return prev;
-      }
       return [...prev, tagId];
     });
   };
