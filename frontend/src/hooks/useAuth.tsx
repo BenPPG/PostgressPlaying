@@ -22,6 +22,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
+  setUser: (user: User) => void;
   isAdmin: boolean;
   loading: boolean;
 }
@@ -42,6 +43,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(false);
   }, []);
+
+  const updateUser = (updated: User) => {
+    localStorage.setItem("user", JSON.stringify(updated));
+    setUser(updated);
+  };
 
   const login = async (email: string, password: string) => {
     const { data } = await api.post("/auth/login", { email, password });
@@ -72,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, register, logout, isAdmin: user?.role === "ADMIN", loading }}
+      value={{ user, token, login, register, logout, setUser: updateUser, isAdmin: user?.role === "ADMIN", loading }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,7 +1,28 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { randomUUID } from "crypto";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import prisma from "../lib/prisma.js";
 import { authenticate } from "../middleware/auth.js";
+
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+function getR2Client() {
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  if (!accountId || !accessKeyId || !secretAccessKey) {
+    throw new Error("R2 environment variables are not configured");
+  }
+  return new S3Client({
+    region: "auto",
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId, secretAccessKey },
+    requestChecksumCalculation: "when_required",
+  });
+}
 
 const updateProfileSchema = z.object({
   username: z
@@ -55,6 +76,53 @@ export default async function userRoutes(app: FastifyInstance) {
       })),
     });
   });
+
+  // POST /api/users/me/avatar-upload-url — get a presigned R2 upload URL
+  app.post(
+    "/me/avatar-upload-url",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const { contentType } = request.body as {
+        contentType?: unknown;
+      };
+
+      if (
+        typeof contentType !== "string" ||
+        !ALLOWED_MIME_TYPES.includes(contentType)
+      ) {
+        return reply
+          .status(400)
+          .send({ error: `contentType must be one of: ${ALLOWED_MIME_TYPES.join(", ")}` });
+      }
+
+      const bucket = process.env.R2_BUCKET_NAME;
+      const publicUrl = process.env.R2_PUBLIC_URL;
+      if (!bucket || !publicUrl) {
+        return reply.status(500).send({ error: "R2 storage is not configured" });
+      }
+
+      const ext = contentType.split("/")[1].replace("jpeg", "jpg");
+      const key = `avatars/${request.user!.userId}-${randomUUID()}.${ext}`;
+
+      let r2: S3Client;
+      try {
+        r2 = getR2Client();
+      } catch {
+        return reply.status(500).send({ error: "R2 storage is not configured" });
+      }
+
+      const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ContentType: contentType,
+      });
+
+      const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 300 });
+      const objectUrl = `${publicUrl.replace(/\/$/, "")}/${key}`;
+
+      return reply.send({ uploadUrl, objectUrl });
+    }
+  );
 
   // PUT /api/users/me — update own profile
   app.put("/me", { preHandler: [authenticate] }, async (request, reply) => {
