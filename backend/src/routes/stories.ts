@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import { authenticate } from "../middleware/auth.js";
 
@@ -18,6 +19,7 @@ const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional().default(12),
   search: z.string().optional(),
   tag: z.string().optional(),
+  author: z.string().optional(),
 });
 
 export default async function storyRoutes(app: FastifyInstance) {
@@ -27,18 +29,97 @@ export default async function storyRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.flatten() });
     }
-    const { page, limit, search, tag } = parsed.data;
+    const { page, limit, search, tag, author } = parsed.data;
     const skip = (page - 1) * limit;
 
-    const where: any = { status: "PUBLISHED" };
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { content: { contains: search, mode: "insensitive" } },
-      ];
+      const searchSql = Prisma.sql`
+        to_tsvector('english', coalesce("Story"."title", '') || ' ' || coalesce("Story"."summary", '') || ' ' || coalesce("Story"."content", ''))
+        @@ plainto_tsquery('english', ${search})
+      `;
+
+      const tagSql = tag
+        ? Prisma.sql`
+            AND EXISTS (
+              SELECT 1
+              FROM "StoryTag" st
+              JOIN "Tag" t ON t."id" = st."tagId"
+              WHERE st."storyId" = "Story"."id"
+                AND t."slug" = ${tag}
+            )
+          `
+        : Prisma.empty;
+
+      const authorSql = author
+        ? Prisma.sql`
+            AND EXISTS (
+              SELECT 1
+              FROM "User"
+              WHERE "User"."id" = "Story"."authorId"
+                AND "User"."username" ILIKE ${`%${author}%`}
+            )
+          `
+        : Prisma.empty;
+
+      const storyIds = await prisma.$queryRaw<{ id: number }[]>`
+        SELECT "Story"."id"
+        FROM "Story"
+        WHERE "Story"."status" = 'PUBLISHED'
+          AND ${searchSql}
+          ${tagSql}
+          ${authorSql}
+        ORDER BY ts_rank(
+          to_tsvector('english', coalesce("Story"."title", '') || ' ' || coalesce("Story"."summary", '') || ' ' || coalesce("Story"."content", '')),
+          plainto_tsquery('english', ${search})
+        ) DESC,
+        "Story"."createdAt" DESC
+        LIMIT ${limit}
+        OFFSET ${skip}
+      `;
+
+      const countResult = await prisma.$queryRaw<{ count: string }[]>`
+        SELECT count(*) AS count
+        FROM "Story"
+        WHERE "Story"."status" = 'PUBLISHED'
+          AND ${searchSql}
+          ${tagSql}
+          ${authorSql}
+      `;
+
+      const storyIdsList = storyIds.map((row) => row.id);
+      const total = Number(countResult[0]?.count ?? 0);
+
+      const stories = storyIdsList.length
+        ? await prisma.story.findMany({
+            where: { id: { in: storyIdsList } },
+            include: {
+              author: { select: { id: true, username: true, avatarUrl: true } },
+              tags: { include: { tag: true } },
+              _count: { select: { comments: true, likes: true } },
+            },
+          })
+        : [];
+
+      const storyMap = new Map(stories.map((story) => [story.id, story]));
+      const orderedStories = storyIdsList.map((id) => storyMap.get(id)).filter(Boolean);
+
+      return reply.send({
+        stories: orderedStories.map((s) => ({
+          ...s,
+          tags: s.tags.map((st) => st.tag),
+        })),
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      });
     }
+
+    const where: any = { status: "PUBLISHED" };
     if (tag) {
       where.tags = { some: { tag: { slug: tag } } };
+    }
+    if (author) {
+      where.author = { username: { contains: author, mode: "insensitive" } };
     }
 
     const [stories, total] = await Promise.all([

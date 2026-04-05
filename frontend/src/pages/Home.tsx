@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Box,
@@ -12,10 +13,6 @@ import {
   Select,
   SimpleGrid,
   Stack,
-  Stat,
-  StatHelpText,
-  StatLabel,
-  StatNumber,
   Tag,
   Text,
   VStack,
@@ -78,6 +75,8 @@ export default function Home() {
       .slice(0, 6);
   }, [stories]);
 
+  const navigate = useNavigate();
+
   const sortedStories = useMemo(() => {
     if (sortBy === "popular") {
       return [...stories].sort(
@@ -88,6 +87,11 @@ export default function Home() {
     }
     return stories;
   }, [stories, sortBy]);
+
+  const randomStory = useMemo(() => {
+    if (stories.length === 0) return null;
+    return stories[Math.floor(Math.random() * stories.length)];
+  }, [stories]);
 
   const topAuthors = useMemo(() => {
     const countMap = new Map<string, number>();
@@ -149,25 +153,84 @@ export default function Home() {
       </Box>
 
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mb={6}>
-        <Stat bg={c.cardBg} borderRadius="lg" p={4} shadow="sm" borderWidth="1px" borderColor={c.borderSubtle}>
-          <StatLabel>Total stories</StatLabel>
-          <StatNumber>{stats.totalStories}</StatNumber>
-          <StatHelpText>Published stories in the current filter</StatHelpText>
-        </Stat>
-        <Stat bg={c.cardBg} borderRadius="lg" p={4} shadow="sm" borderWidth="1px" borderColor={c.borderSubtle}>
-          <StatLabel>Tags</StatLabel>
-          <StatNumber>{stats.totalTags}</StatNumber>
-          <StatHelpText>Choose a category</StatHelpText>
-        </Stat>
-        <Stat bg={c.cardBg} borderRadius="lg" p={4} shadow="sm" borderWidth="1px" borderColor={c.borderSubtle}>
-          <StatLabel>Top authors</StatLabel>
-          <StatNumber>{stats.totalAuthors}</StatNumber>
-          <StatHelpText>Active in this page set</StatHelpText>
-        </Stat>
+        <Box
+          bg={c.cardBg}
+          borderRadius="xl"
+          p={6}
+          shadow="md"
+          borderWidth="1px"
+          borderColor={c.borderSubtle}
+          cursor="pointer"
+          transition="all 0.2s ease"
+          _hover={{ transform: "translateY(-4px)", shadow: "lg", bg: c.hoverBg }}
+          onClick={() => navigate("/search")}
+        >
+          <Text fontSize="sm" fontWeight="semibold" color="purple.500" mb={3}>
+            Search stories
+          </Text>
+          <Heading size="md" mb={2}>
+            Find your next read
+          </Heading>
+          <Text color={c.subtext} mb={4}>
+            Search across {stats.totalStories} stories, filter by tags, and uncover hidden gems.
+          </Text>
+        </Box>
+
+        <Box
+          bg={c.cardBg}
+          borderRadius="xl"
+          p={6}
+          shadow="md"
+          borderWidth="1px"
+          borderColor={c.borderSubtle}
+          cursor="pointer"
+          transition="all 0.2s ease"
+          _hover={{ transform: "translateY(-4px)", shadow: "lg", bg: c.hoverBg }}
+          onClick={() => {
+            const element = document.getElementById("top-authors");
+            if (element) {
+              element.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }}
+        >
+          <Text fontSize="sm" fontWeight="semibold" color="purple.500" mb={3}>
+            Top authors
+          </Text>
+          <Heading size="md" mb={2}>
+            Meet the best writers
+          </Heading>
+          <Text color={c.subtext} mb={4}>
+            Browse the most active authors on this page and follow their latest stories.
+          </Text>
+        </Box>
+
+        <Box
+          bg={c.cardBg}
+          borderRadius="xl"
+          p={6}
+          shadow="md"
+          borderWidth="1px"
+          borderColor={c.borderSubtle}
+          cursor={randomStory ? "pointer" : "not-allowed"}
+          transition="all 0.2s ease"
+          _hover={randomStory ? { transform: "translateY(-4px)", shadow: "lg", bg: c.hoverBg } : undefined}
+          onClick={() => randomStory && navigate(`/stories/${randomStory.id}`)}
+          opacity={randomStory ? 1 : 0.65}
+        >
+          <Text fontSize="sm" fontWeight="semibold" color="purple.500" mb={3}>
+            Random story
+          </Text>
+          <Heading size="md" mb={2}>
+            Surprise me
+          </Heading>
+          <Text color={c.subtext} mb={4}>
+            Jump to a random story from the current list and discover something unexpected.
+          </Text>
+        </Box>
       </SimpleGrid>
 
       <Stack direction={{ base: "column", md: "row" }} align="center" spacing={3} mb={4}>
-        <InputGroup maxW="xl">
+        <InputGroup id="story-search" maxW="xl">
           <InputLeftElement pointerEvents="none">
             <SearchIcon color="gray.400" />
           </InputLeftElement>
@@ -253,7 +316,7 @@ export default function Home() {
           />
 
           <Box>
-            <Heading size="md" mb={3}>
+            <Heading id="top-authors" size="md" mb={3}>
               Authors on this page
             </Heading>
             <HStack wrap="wrap" spacing={2}>

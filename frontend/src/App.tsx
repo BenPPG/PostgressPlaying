@@ -4,6 +4,7 @@ import { AuthProvider } from "./hooks/useAuth";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
+import Search from "./pages/Search";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import StoryDetail from "./pages/StoryDetail";
@@ -25,6 +26,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/search" element={<Search />} />
               <Route path="/stories/:id" element={<StoryDetail />} />
               <Route
                 path="/stories/new"
