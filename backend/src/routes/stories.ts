@@ -20,7 +20,39 @@ const listQuerySchema = z.object({
   search: z.string().optional(),
   tag: z.string().optional(),
   author: z.string().optional(),
+  cursor: z.string().optional(),
 });
+
+function encodeCursor(createdAt: Date, id: number): string {
+  return Buffer.from(`${createdAt.toISOString()}|${id}`).toString("base64url");
+}
+
+function decodeCursor(cursor: string): { createdAt: Date; id: number } | null {
+  try {
+    const raw = Buffer.from(cursor, "base64url").toString();
+    const sep = raw.lastIndexOf("|");
+    if (sep === -1) return null;
+    const createdAt = new Date(raw.substring(0, sep));
+    const id = Number(raw.substring(sep + 1));
+    if (isNaN(id) || isNaN(createdAt.getTime())) return null;
+    return { createdAt, id };
+  } catch {
+    return null;
+  }
+}
+
+function encodeFtsCursor(offset: number): string {
+  return Buffer.from(String(offset)).toString("base64url");
+}
+
+function decodeFtsCursor(cursor: string): number {
+  try {
+    const n = Number(Buffer.from(cursor, "base64url").toString());
+    return isNaN(n) ? 0 : n;
+  } catch {
+    return 0;
+  }
+}
 
 export default async function storyRoutes(app: FastifyInstance) {
   // GET /api/stories — list published stories
@@ -29,23 +61,26 @@ export default async function storyRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.flatten() });
     }
-    const { page, limit, search, tag, author } = parsed.data;
-    const skip = (page - 1) * limit;
+    const { page, limit, search, tag, author, cursor } = parsed.data;
+    const tags = tag ? tag.split(",").filter(Boolean) : [];
+    const cursorMode = cursor !== undefined;
 
     if (search) {
+      const ftsOffset = cursor ? decodeFtsCursor(cursor) : 0;
+
       const searchSql = Prisma.sql`
         to_tsvector('english', coalesce("Story"."title", '') || ' ' || coalesce("Story"."summary", '') || ' ' || coalesce("Story"."content", ''))
         @@ plainto_tsquery('english', ${search})
       `;
 
-      const tagSql = tag
+      const tagSql = tags.length > 0
         ? Prisma.sql`
             AND EXISTS (
               SELECT 1
               FROM "StoryTag" st
               JOIN "Tag" t ON t."id" = st."tagId"
               WHERE st."storyId" = "Story"."id"
-                AND t."slug" = ${tag}
+                AND t."slug" IN (${Prisma.join(tags)})
             )
           `
         : Prisma.empty;
@@ -72,26 +107,19 @@ export default async function storyRoutes(app: FastifyInstance) {
           to_tsvector('english', coalesce("Story"."title", '') || ' ' || coalesce("Story"."summary", '') || ' ' || coalesce("Story"."content", '')),
           plainto_tsquery('english', ${search})
         ) DESC,
-        "Story"."createdAt" DESC
-        LIMIT ${limit}
-        OFFSET ${skip}
-      `;
-
-      const countResult = await prisma.$queryRaw<{ count: string }[]>`
-        SELECT count(*) AS count
-        FROM "Story"
-        WHERE "Story"."status" = 'PUBLISHED'
-          AND ${searchSql}
-          ${tagSql}
-          ${authorSql}
+        "Story"."createdAt" DESC,
+        "Story"."id" DESC
+        LIMIT ${limit + 1}
+        OFFSET ${ftsOffset}
       `;
 
       const storyIdsList = storyIds.map((row) => row.id);
-      const total = Number(countResult[0]?.count ?? 0);
+      const hasMore = storyIdsList.length > limit;
+      const pageIds = hasMore ? storyIdsList.slice(0, limit) : storyIdsList;
 
-      const stories = storyIdsList.length
+      const stories = pageIds.length
         ? await prisma.story.findMany({
-            where: { id: { in: storyIdsList } },
+            where: { id: { in: pageIds } },
             include: {
               author: { select: { id: true, username: true, avatarUrl: true } },
               tags: { include: { tag: true } },
@@ -101,31 +129,69 @@ export default async function storyRoutes(app: FastifyInstance) {
         : [];
 
       const storyMap = new Map(stories.map((story) => [story.id, story]));
-      const orderedStories = storyIdsList.map((id) => storyMap.get(id)).filter(Boolean);
+      const orderedStories = pageIds.map((id) => storyMap.get(id)).filter(Boolean);
+      const nextCursor = hasMore ? encodeFtsCursor(ftsOffset + limit) : null;
 
       return reply.send({
         stories: orderedStories.map((s) => ({
           ...s,
           tags: s.tags.map((st) => st.tag),
         })),
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
+        nextCursor,
+        hasMore,
       });
     }
 
     const where: any = { status: "PUBLISHED" };
-    if (tag) {
-      where.tags = { some: { tag: { slug: tag } } };
+    if (tags.length === 1) {
+      where.tags = { some: { tag: { slug: tags[0] } } };
+    } else if (tags.length > 1) {
+      where.tags = { some: { tag: { slug: { in: tags } } } };
     }
     if (author) {
       where.author = { username: { contains: author, mode: "insensitive" } };
     }
 
+    if (cursorMode) {
+      const decoded = cursor ? decodeCursor(cursor) : null;
+      if (decoded) {
+        where.AND = [
+          {
+            OR: [
+              { createdAt: { lt: decoded.createdAt } },
+              { createdAt: decoded.createdAt, id: { lt: decoded.id } },
+            ],
+          },
+        ];
+      }
+
+      const fetched = await prisma.story.findMany({
+        where,
+        take: limit + 1,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        include: {
+          author: { select: { id: true, username: true, avatarUrl: true } },
+          tags: { include: { tag: true } },
+          _count: { select: { comments: true, likes: true } },
+        },
+      });
+
+      const hasMore = fetched.length > limit;
+      const pageStories = hasMore ? fetched.slice(0, limit) : fetched;
+      const last = pageStories[pageStories.length - 1];
+      const nextCursor = hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
+
+      return reply.send({
+        stories: pageStories.map((s) => ({ ...s, tags: s.tags.map((st) => st.tag) })),
+        nextCursor,
+        hasMore,
+      });
+    }
+
     const [stories, total] = await Promise.all([
       prisma.story.findMany({
         where,
-        skip,
+        skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {

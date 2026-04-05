@@ -7,10 +7,6 @@ import {
   Center,
   Heading,
   HStack,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  Select,
   SimpleGrid,
   Stack,
   Tag,
@@ -18,7 +14,6 @@ import {
   VStack,
   Spinner,
 } from "@chakra-ui/react";
-import { SearchIcon } from "@chakra-ui/icons";
 import api from "../api/client";
 import StoryGrid from "../components/StoryGrid";
 import PaginatedStoryList from "../components/PaginatedStoryList";
@@ -29,9 +24,7 @@ import type { TagType, StoryType, StoriesResponse } from "../types/story";
 export default function Home() {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
   const [activeTag, setActiveTag] = useState("");
-  const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
 
   const { data: tagsData } = useQuery({
     queryKey: ["tags"],
@@ -39,13 +32,12 @@ export default function Home() {
   });
 
   const { data, isLoading, isError } = useQuery<StoriesResponse, unknown, StoriesResponse>({
-    queryKey: ["stories", page, search, activeTag],
+    queryKey: ["stories", page, activeTag],
     queryFn: async () => {
       const response = await api.get<StoriesResponse>("/stories", {
         params: {
           page,
           limit: 12,
-          search: search || undefined,
           tag: activeTag || undefined,
         },
       });
@@ -76,17 +68,6 @@ export default function Home() {
   }, [stories]);
 
   const navigate = useNavigate();
-
-  const sortedStories = useMemo(() => {
-    if (sortBy === "popular") {
-      return [...stories].sort(
-        (a, b) =>
-          b.viewsCount + b._count.likes + b._count.comments -
-          (a.viewsCount + a._count.likes + a._count.comments)
-      );
-    }
-    return stories;
-  }, [stories, sortBy]);
 
   const randomStory = useMemo(() => {
     if (stories.length === 0) return null;
@@ -229,35 +210,8 @@ export default function Home() {
         </Box>
       </SimpleGrid>
 
-      <Stack direction={{ base: "column", md: "row" }} align="center" spacing={3} mb={4}>
-        <InputGroup id="story-search" maxW="xl">
-          <InputLeftElement pointerEvents="none">
-            <SearchIcon color="gray.400" />
-          </InputLeftElement>
-          <Input
-            placeholder="Search stories..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            bg={c.inputBg}
-          />
-        </InputGroup>
-        <Select
-          maxW="xs"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as "recent" | "popular")}
-          bg={c.inputBg}
-          borderColor={c.border}
-        >
-          <option value="recent">Newest</option>
-          <option value="popular">Most Popular</option>
-        </Select>
-      </Stack>
-
       {tagsData && tagsData.length > 0 && (
-        <HStack mb={6} flexWrap="wrap" spacing={2}>
+        <HStack mb={4} flexWrap="wrap" spacing={2}>
           <Tag
             size="md"
             variant={activeTag === "" ? "solid" : "outline"}
@@ -308,7 +262,7 @@ export default function Home() {
 
           <PaginatedStoryList
             title={`All Stories (${stats.totalStories})`}
-            stories={sortedStories}
+            stories={stories}
             page={page}
             totalPages={stats.totalPages}
             onPageChange={setPage}

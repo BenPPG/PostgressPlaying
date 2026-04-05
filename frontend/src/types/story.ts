@@ -23,3 +23,9 @@ export type StoriesResponse = {
   page: number;
   totalPages: number;
 };
+
+export type CursorStoriesResponse = {
+  stories: StoryType[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
