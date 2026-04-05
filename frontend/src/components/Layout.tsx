@@ -10,9 +10,12 @@ import {
   Text,
   Container,
   IconButton,
+  Image,
   useColorMode,
 } from "@chakra-ui/react";
 import { MoonIcon, SunIcon } from "@chakra-ui/icons";
+import { FaPenNib } from "react-icons/fa";
+import logo from "../assets/logo.svg";
 import { useColors } from "../hooks/useColors";
 
 export default function Layout() {
@@ -29,13 +32,39 @@ export default function Layout() {
   return (
     <Box minH="100vh" bg={c.pageBg} color={c.text} display="flex" flexDirection="column">
       <Toaster position="top-right" richColors />
-      <Box as="header" bg={c.headerBg} borderBottomWidth="1px" borderColor={c.borderSubtle} shadow="sm">
-        <Container maxW="6xl" py={3}>
-          <Flex align="center" justify="space-between">
-            <Link as={RouterLink} to="/" fontSize="xl" fontWeight="bold" color="purple.500" _hover={{ color: "purple.400", textDecoration: "none" }}>
-              📖 Short Stories
+      <Box
+        as="header"
+        bg={c.headerBg}
+        borderBottomWidth="1px"
+        borderColor={c.borderSubtle}
+        shadow="sm"
+        position="sticky"
+        top="0"
+        zIndex="sticky"
+        backdropFilter="saturate(180%) blur(8px)"
+      >
+        <Container maxW="6xl" py={4}>
+          <Flex align="center" justify="space-between" wrap="wrap" gap={4}>
+            <Link
+              as={RouterLink}
+              to="/"
+              display="inline-flex"
+              alignItems="center"
+              fontSize="2xl"
+              fontWeight="bold"
+              color="purple.500"
+              _hover={{ color: "purple.400", textDecoration: "none" }}
+            >
+              <Image src={logo} alt="Novara logo" boxSize={14} objectFit="contain" mr={4} />
+              <Box>
+                <Text fontSize="2xl">Novara</Text>
+                <Text fontSize="sm" color={c.subtext} mt={1}>
+                  Read, write, and share short fiction
+                </Text>
+              </Box>
             </Link>
-            <HStack spacing={2} fontSize="sm">
+
+            <HStack spacing={2} fontSize="sm" flexWrap="wrap" alignItems="center">
               <IconButton
                 size="sm"
                 aria-label={colorMode === "light" ? "Switch to dark mode" : "Switch to light mode"}
@@ -45,21 +74,28 @@ export default function Layout() {
                 color={c.link}
                 _hover={{ bg: c.hoverBg }}
               />
-              <Link as={RouterLink} to="/" color={c.link} _hover={{ color: c.linkHover }}>
+              <Button as={RouterLink} to="/" variant="ghost" size="sm" color={c.link} _hover={{ bg: c.hoverBg }}>
                 Browse
-              </Link>
+              </Button>
               {user ? (
                 <>
-                  <Link as={RouterLink} to="/stories/new" color="purple.500" fontWeight="medium" _hover={{ color: "purple.400" }}>
-                    ✍️ Write
-                  </Link>
+                  <Button
+                    as={RouterLink}
+                    to="/stories/new"
+                    size="sm"
+                    colorScheme="purple"
+                    variant="solid"
+                    leftIcon={<FaPenNib />}
+                  >
+                    Write
+                  </Button>
                   <Link as={RouterLink} to="/profile" color={c.link} _hover={{ color: c.linkHover }}>
                     {user.username}
                   </Link>
                   {isAdmin && (
-                    <Link as={RouterLink} to="/admin" color="red.400" fontWeight="medium" _hover={{ color: "red.300" }}>
+                    <Button as={RouterLink} to="/admin" size="sm" colorScheme="red" variant="outline">
                       Admin
-                    </Link>
+                    </Button>
                   )}
                   <Button size="sm" variant="ghost" onClick={handleLogout} color={c.link} _hover={{ bg: c.hoverBg }}>
                     Logout
@@ -67,9 +103,9 @@ export default function Layout() {
                 </>
               ) : (
                 <>
-                  <Link as={RouterLink} to="/login" color={c.link} _hover={{ color: c.linkHover }}>
+                  <Button as={RouterLink} to="/login" size="sm" variant="ghost" color={c.link} _hover={{ bg: c.hoverBg }}>
                     Login
-                  </Link>
+                  </Button>
                   <Button as={RouterLink} to="/register" size="sm" colorScheme="purple">
                     Register
                   </Button>

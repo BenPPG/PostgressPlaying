@@ -1,6 +1,6 @@
 import { Link as RouterLink } from "react-router-dom";
 import { Box, Heading, Text, HStack, Tag, Link } from "@chakra-ui/react";
-import { ViewIcon } from "@chakra-ui/icons";
+import { FaEye, FaHeart, FaComment } from "react-icons/fa";
 import { useColors } from "../hooks/useColors";
 
 import type { StoryType } from "../types/story";
@@ -31,9 +31,18 @@ export default function StoryCard({ story }: StoryCardProps) {
           {authorUsername}
         </Link>
         <Text>{new Date(story.createdAt).toLocaleDateString()}</Text>
-        <HStack spacing={1}><ViewIcon /><Text>{story.viewsCount}</Text></HStack>
-        <Text>❤️ {story._count.likes}</Text>
-        <Text>💬 {story._count.comments}</Text>
+        <HStack spacing={1} alignItems="center">
+          <FaEye />
+          <Text>{story.viewsCount}</Text>
+        </HStack>
+        <HStack spacing={1} alignItems="center">
+          <FaHeart />
+          <Text>{story._count.likes}</Text>
+        </HStack>
+        <HStack spacing={1} alignItems="center">
+          <FaComment />
+          <Text>{story._count.comments}</Text>
+        </HStack>
       </HStack>
       {story.tags.length > 0 && (
         <HStack mt={2} flexWrap="wrap" spacing={1}>

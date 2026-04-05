@@ -19,6 +19,7 @@ import {
   Flex,
 } from "@chakra-ui/react";
 import { DeleteIcon } from "@chakra-ui/icons";
+import { FaEye, FaHeart, FaRegHeart } from "react-icons/fa";
 import { toast } from "sonner";
 import api from "../api/client";
 import { useAuth } from "../hooks/useAuth";
@@ -102,7 +103,10 @@ export default function StoryDetail() {
           {story.author.username}
         </Link>
         <Text>{new Date(story.createdAt).toLocaleDateString()}</Text>
-        <Text>👁 {story.viewsCount} views</Text>
+        <HStack spacing={1} alignItems="center">
+          <FaEye />
+          <Text>{story.viewsCount} views</Text>
+        </HStack>
       </HStack>
       {story.tags?.length > 0 && (
         <HStack mb={4} spacing={2}>
@@ -121,10 +125,11 @@ export default function StoryDetail() {
             size="sm"
             colorScheme={story.userLiked ? "red" : "gray"}
             variant={story.userLiked ? "solid" : "outline"}
+            leftIcon={story.userLiked ? <FaHeart /> : <FaRegHeart />}
             onClick={() => likeMutation.mutate()}
             isLoading={likeMutation.isPending}
           >
-            {story.userLiked ? "❤️ Liked" : "🤍 Like"} ({story._count?.likes ?? 0})
+            {story.userLiked ? "Liked" : "Like"} ({story._count?.likes ?? 0})
           </Button>
         )}
         {isOwner && (

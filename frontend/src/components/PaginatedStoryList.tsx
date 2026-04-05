@@ -1,4 +1,5 @@
 import { Box, Button, Flex, Heading, HStack, Text, VStack } from "@chakra-ui/react";
+import { FaEye, FaHeart, FaComment } from "react-icons/fa";
 import type { StoryType } from "../types/story";
 import { useColors } from "../hooks/useColors";
 
@@ -40,9 +41,18 @@ function HorizontalStoryCard({ story }: { story: StoryType }) {
         <HStack spacing={3} mt={2} fontSize="xs" color={c.subtext}>
           <Text>{story.author?.username ?? story.authorUsername ?? "Unknown author"}</Text>
           <Text>{new Date(story.createdAt).toLocaleDateString()}</Text>
-          <Text>👀 {story.viewsCount}</Text>
-          <Text>❤️ {story._count.likes}</Text>
-          <Text>💬 {story._count.comments}</Text>
+          <HStack spacing={1} alignItems="center">
+            <FaEye />
+            <Text>{story.viewsCount}</Text>
+          </HStack>
+          <HStack spacing={1} alignItems="center">
+            <FaHeart />
+            <Text>{story._count.likes}</Text>
+          </HStack>
+          <HStack spacing={1} alignItems="center">
+            <FaComment />
+            <Text>{story._count.comments}</Text>
+          </HStack>
         </HStack>
       </Box>
     </Flex>

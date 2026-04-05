@@ -23,7 +23,7 @@ async function main() {
       create: tag,
     });
   }
-  console.log("✅ Tags seeded");
+  console.log("Tags seeded");
 
   // Create admin user
   const adminHash = await bcrypt.hash("admin123!", 12);
@@ -38,7 +38,7 @@ async function main() {
       bio: "Platform administrator",
     },
   });
-  console.log("✅ Admin user: admin@stories.dev / admin123!");
+  console.log("Admin user: admin@stories.dev / admin123!");
 
   // Create sample user
   const userHash = await bcrypt.hash("user1234!", 12);
@@ -52,7 +52,7 @@ async function main() {
       bio: "I love writing short stories!",
     },
   });
-  console.log("✅ Sample user: writer@stories.dev / user1234!");
+  console.log("Sample user: writer@stories.dev / user1234!");
 
   // Create sample stories
   const tags = await prisma.tag.findMany();
@@ -153,7 +153,7 @@ And it was open.`,
       });
     }
   }
-  console.log("✅ Sample stories seeded");
+  console.log("Sample stories seeded");
 
   // Add some comments
   const allStories = await prisma.story.findMany();
@@ -169,7 +169,7 @@ And it was open.`,
       });
     }
   }
-  console.log("✅ Sample comments seeded");
+  console.log("Sample comments seeded");
 
   // Add some likes
   for (const story of allStories) {
@@ -183,9 +183,9 @@ And it was open.`,
       });
     }
   }
-  console.log("✅ Sample likes seeded");
+  console.log("Sample likes seeded");
 
-  console.log("\n🎉 Seed complete!");
+  console.log("Seed complete!");
 }
 
 main()
