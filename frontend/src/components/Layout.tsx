@@ -89,6 +89,9 @@ export default function Layout() {
                   >
                     Write
                   </Button>
+                  <Button as={RouterLink} to="/my-series" size="sm" variant="ghost" color={c.link} _hover={{ bg: c.hoverBg }}>
+                    My Series
+                  </Button>
                   <Link as={RouterLink} to="/profile" color={c.link} _hover={{ color: c.linkHover }}>
                     {user.username}
                   </Link>

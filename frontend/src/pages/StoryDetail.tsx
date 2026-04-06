@@ -17,13 +17,96 @@ import {
   Spinner,
   Link,
   Flex,
+  Badge,
 } from "@chakra-ui/react";
-import { DeleteIcon } from "@chakra-ui/icons";
+import { DeleteIcon, ChevronLeftIcon, ChevronRightIcon } from "@chakra-ui/icons";
 import { FaEye, FaHeart, FaRegHeart } from "react-icons/fa";
 import { toast } from "sonner";
 import api from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 import { useColors } from "../hooks/useColors";
+
+interface SeriesNavBarProps {
+  seriesId: number;
+  seriesTitle: string;
+  currentStoryId: number;
+  currentOrder: number;
+}
+
+function SeriesNavBar({ seriesId, seriesTitle, currentStoryId, currentOrder }: SeriesNavBarProps) {
+  const c = useColors();
+
+  const { data: seriesData } = useQuery({
+    queryKey: ["series", seriesId],
+    queryFn: () => api.get(`/series/${seriesId}`).then((r) => r.data),
+  });
+
+  const stories: { id: number; order: number; title: string }[] = seriesData?.stories ?? [];
+  const total = stories.length;
+  const currentIndex = stories.findIndex((s) => s.id === currentStoryId);
+  const position = currentIndex >= 0 ? currentIndex : stories.findIndex((s) => s.order === currentOrder);
+  const prevStory = position > 0 ? stories[position - 1] : null;
+  const nextStory = position >= 0 && position < total - 1 ? stories[position + 1] : null;
+
+  return (
+    <Box
+      bg={c.cardBg}
+      borderWidth="1px"
+      borderColor="purple.200"
+      rounded="md"
+      px={4}
+      py={3}
+    >
+      <HStack justify="space-between" align="center" flexWrap="wrap" gap={2}>
+        <HStack spacing={2}>
+          <Badge colorScheme="purple" variant="subtle">Series</Badge>
+          <Link as={RouterLink} to={`/series/${seriesId}`} fontWeight="semibold" color="purple.500" fontSize="sm">
+            {seriesTitle}
+          </Link>
+          {total > 0 && (
+            <Text fontSize="xs" color={c.subtext}>
+              Part {position + 1} of {total}
+            </Text>
+          )}
+        </HStack>
+        <HStack spacing={2}>
+          {prevStory ? (
+            <Button
+              as={RouterLink}
+              to={`/stories/${prevStory.id}`}
+              size="xs"
+              variant="outline"
+              colorScheme="purple"
+              leftIcon={<ChevronLeftIcon />}
+            >
+              Prev
+            </Button>
+          ) : (
+            <Button size="xs" variant="outline" isDisabled leftIcon={<ChevronLeftIcon />}>
+              Prev
+            </Button>
+          )}
+          {nextStory ? (
+            <Button
+              as={RouterLink}
+              to={`/stories/${nextStory.id}`}
+              size="xs"
+              variant="outline"
+              colorScheme="purple"
+              rightIcon={<ChevronRightIcon />}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button size="xs" variant="outline" isDisabled rightIcon={<ChevronRightIcon />}>
+              Next
+            </Button>
+          )}
+        </HStack>
+      </HStack>
+    </Box>
+  );
+}
 
 export default function StoryDetail() {
   const { id } = useParams<{ id: string }>();
@@ -87,6 +170,10 @@ export default function StoryDetail() {
 
   const isOwner = user?.id === story.author?.id;
 
+  // For each series this story belongs to, find prev/next siblings
+  const seriesEntries: { order: number; series: { id: number; title: string; slug: string } }[] =
+    story.series ?? [];
+
   const headingColor = c.heading;
   const textColor = c.subtext;
   const cardBg = c.cardBg;
@@ -116,6 +203,21 @@ export default function StoryDetail() {
             </Tag>
           ))}
         </HStack>
+      )}
+
+      {/* Series membership + prev/next nav */}
+      {seriesEntries.length > 0 && (
+        <VStack align="stretch" spacing={3} mb={5}>
+          {seriesEntries.map((se) => (
+            <SeriesNavBar
+              key={se.series.id}
+              seriesId={se.series.id}
+              seriesTitle={se.series.title}
+              currentStoryId={Number(id)}
+              currentOrder={se.order}
+            />
+          ))}
+        </VStack>
       )}
 
       {/* Actions */}

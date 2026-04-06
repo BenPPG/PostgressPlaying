@@ -123,6 +123,7 @@ export default async function storyRoutes(app: FastifyInstance) {
             include: {
               author: { select: { id: true, username: true, avatarUrl: true } },
               tags: { include: { tag: true } },
+              series: { orderBy: { order: "asc" }, include: { series: { select: { id: true, title: true, slug: true } } } },
               _count: { select: { comments: true, likes: true } },
             },
           })
@@ -135,7 +136,8 @@ export default async function storyRoutes(app: FastifyInstance) {
       return reply.send({
         stories: orderedStories.map((s) => ({
           ...s,
-          tags: s.tags.map((st) => st.tag),
+          tags: s!.tags.map((st) => st.tag),
+          series: s!.series.map((ss) => ({ order: ss.order, series: ss.series })),
         })),
         nextCursor,
         hasMore,
@@ -172,6 +174,7 @@ export default async function storyRoutes(app: FastifyInstance) {
         include: {
           author: { select: { id: true, username: true, avatarUrl: true } },
           tags: { include: { tag: true } },
+          series: { orderBy: { order: "asc" }, include: { series: { select: { id: true, title: true, slug: true } } } },
           _count: { select: { comments: true, likes: true } },
         },
       });
@@ -182,7 +185,7 @@ export default async function storyRoutes(app: FastifyInstance) {
       const nextCursor = hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
 
       return reply.send({
-        stories: pageStories.map((s) => ({ ...s, tags: s.tags.map((st) => st.tag) })),
+        stories: pageStories.map((s) => ({ ...s, tags: s.tags.map((st) => st.tag), series: s.series.map((ss) => ({ order: ss.order, series: ss.series })) })),
         nextCursor,
         hasMore,
       });
@@ -197,6 +200,7 @@ export default async function storyRoutes(app: FastifyInstance) {
         include: {
           author: { select: { id: true, username: true, avatarUrl: true } },
           tags: { include: { tag: true } },
+          series: { orderBy: { order: "asc" }, include: { series: { select: { id: true, title: true, slug: true } } } },
           _count: { select: { comments: true, likes: true } },
         },
       }),
@@ -207,6 +211,7 @@ export default async function storyRoutes(app: FastifyInstance) {
       stories: stories.map((s) => ({
         ...s,
         tags: s.tags.map((st) => st.tag),
+        series: s.series.map((ss) => ({ order: ss.order, series: ss.series })),
       })),
       total,
       page,
@@ -236,12 +241,14 @@ export default async function storyRoutes(app: FastifyInstance) {
       include: {
         author: { select: { id: true, username: true } },
         tags: { include: { tag: true } },
+        series: { orderBy: { order: "asc" }, include: { series: { select: { id: true, title: true, slug: true } } } },
       },
     });
 
     return reply.status(201).send({
       ...story,
       tags: story.tags.map((st) => st.tag),
+      series: story.series.map((ss) => ({ order: ss.order, series: ss.series })),
     });
   });
 
@@ -259,6 +266,7 @@ export default async function storyRoutes(app: FastifyInstance) {
       include: {
         author: { select: { id: true, username: true, avatarUrl: true, bio: true } },
         tags: { include: { tag: true } },
+        series: { orderBy: { order: "asc" }, include: { series: { select: { id: true, title: true, slug: true } } } },
         _count: { select: { comments: true, likes: true } },
       },
     });
@@ -289,6 +297,7 @@ export default async function storyRoutes(app: FastifyInstance) {
     return reply.send({
       ...story,
       tags: story.tags.map((st) => st.tag),
+      series: story.series.map((ss) => ({ order: ss.order, series: ss.series })),
       userLiked,
     });
   });
@@ -329,10 +338,11 @@ export default async function storyRoutes(app: FastifyInstance) {
       include: {
         author: { select: { id: true, username: true } },
         tags: { include: { tag: true } },
+        series: { orderBy: { order: "asc" }, include: { series: { select: { id: true, title: true, slug: true } } } },
       },
     });
 
-    return reply.send({ ...story, tags: story.tags.map((st) => st.tag) });
+    return reply.send({ ...story, tags: story.tags.map((st) => st.tag), series: story.series.map((ss) => ({ order: ss.order, series: ss.series })) });
   });
 
   // DELETE /api/stories/:id

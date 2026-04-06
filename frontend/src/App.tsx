@@ -11,6 +11,8 @@ import StoryDetail from "./pages/StoryDetail";
 import StoryEditor from "./pages/StoryEditor";
 import Profile from "./pages/Profile";
 import AdminPanel from "./pages/AdminPanel";
+import SeriesDetail from "./pages/SeriesDetail";
+import SeriesManage from "./pages/SeriesManage";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -44,6 +46,11 @@ export default function App() {
               <Route
                 path="/admin"
                 element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>}
+              />
+              <Route path="/series/:id" element={<SeriesDetail />} />
+              <Route
+                path="/my-series"
+                element={<ProtectedRoute><SeriesManage /></ProtectedRoute>}
               />
             </Route>
           </Routes>

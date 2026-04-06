@@ -4,6 +4,21 @@ export type TagType = {
   slug: string;
 };
 
+export type SeriesType = {
+  id: number;
+  title: string;
+  slug: string;
+  description?: string | null;
+  authorId: number;
+  author?: { id: number; username: string };
+  _count?: { stories: number };
+};
+
+export type SeriesEntryType = {
+  order: number;
+  series: { id: number; title: string; slug: string };
+};
+
 export type StoryType = {
   id: number;
   title: string;
@@ -14,6 +29,7 @@ export type StoryType = {
   authorId?: number;
   authorUsername?: string;
   tags: TagType[];
+  series?: SeriesEntryType[];
   _count: { comments: number; likes: number };
 };
 

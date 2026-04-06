@@ -19,16 +19,22 @@ import {
   TagCloseButton,
   Center,
   Spinner,
+  Checkbox,
+  Text,
+  SimpleGrid,
 } from "@chakra-ui/react";
 import { toast } from "sonner";
 import api from "../api/client";
+import { useAuth } from "../hooks/useAuth";
 import { useColors } from "../hooks/useColors";
+import type { SeriesType } from "../types/story";
 
 export default function StoryEditor() {
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const c = useColors();
 
   const [title, setTitle] = useState("");
@@ -37,12 +43,19 @@ export default function StoryEditor() {
   const [content, setContent] = useState("");
   const [status, setStatus] = useState("DRAFT");
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [selectedSeriesIds, setSelectedSeriesIds] = useState<number[]>([]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const { data: tags } = useQuery({
     queryKey: ["tags"],
     queryFn: () => api.get("/tags").then((r) => r.data),
+  });
+
+  const { data: mySeries } = useQuery<SeriesType[]>({
+    queryKey: ["my-series"],
+    queryFn: () => api.get(`/series?authorId=${user?.id}`).then((r) => r.data),
+    enabled: !!user,
   });
 
   const { data: existingStory, isLoading } = useQuery({
@@ -58,6 +71,7 @@ export default function StoryEditor() {
       setContent(existingStory.content);
       setStatus(existingStory.status);
       setSelectedTagIds(existingStory.tags?.map((t: any) => t.id) || []);
+      setSelectedSeriesIds(existingStory.series?.map((se: any) => se.series.id) || []);
     }
   }, [existingStory]);
 
@@ -84,15 +98,31 @@ export default function StoryEditor() {
         status,
         tagIds: selectedTagIds,
       };
+
+      let storyId: number;
       if (isEdit) {
         await api.put(`/stories/${id}`, payload);
+        storyId = Number(id);
         toast.success("Story updated!");
-        navigate(`/stories/${id}`);
       } else {
         const { data } = await api.post("/stories", payload);
+        storyId = data.id;
         toast.success("Story created!");
-        navigate(`/stories/${data.id}`);
       }
+
+      // Sync series membership
+      const prevSeriesIds: number[] = existingStory?.series?.map((se: any) => se.series.id) ?? [];
+      const toAdd = selectedSeriesIds.filter((sid) => !prevSeriesIds.includes(sid));
+      const toRemove = prevSeriesIds.filter((sid) => !selectedSeriesIds.includes(sid));
+      await Promise.all([
+        ...toAdd.map((sid) => api.post(`/series/${sid}/stories`, { storyId })),
+        ...toRemove.map((sid) => api.delete(`/series/${sid}/stories/${storyId}`)),
+      ]);
+      if (toAdd.length || toRemove.length) {
+        queryClient.invalidateQueries({ queryKey: ["my-series"] });
+      }
+
+      navigate(`/stories/${storyId}`);
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to save story");
     } finally {
@@ -293,6 +323,33 @@ export default function StoryEditor() {
                 )}
               </HStack>
             </FormControl>
+
+            {mySeries && mySeries.length > 0 && (
+              <FormControl>
+                <FormLabel>Series</FormLabel>
+                <Text fontSize="xs" color={c.subtext} mb={2}>
+                  Select which series this story belongs to.
+                </Text>
+                <SimpleGrid columns={[1, 2]} spacing={2}>
+                  {mySeries.map((s) => (
+                    <Checkbox
+                      key={s.id}
+                      isChecked={selectedSeriesIds.includes(s.id)}
+                      onChange={() =>
+                        setSelectedSeriesIds((prev) =>
+                          prev.includes(s.id)
+                            ? prev.filter((sid) => sid !== s.id)
+                            : [...prev, s.id]
+                        )
+                      }
+                      colorScheme="purple"
+                    >
+                      <Text fontSize="sm">{s.title}</Text>
+                    </Checkbox>
+                  ))}
+                </SimpleGrid>
+              </FormControl>
+            )}
 
             <Button type="submit" colorScheme="purple" size="lg" isLoading={submitting}>
               {isEdit ? "Update Story" : "Publish Story"}

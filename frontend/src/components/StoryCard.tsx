@@ -53,6 +53,24 @@ export default function StoryCard({ story }: StoryCardProps) {
           ))}
         </HStack>
       )}
+      {story.series && story.series.length > 0 && (
+        <HStack mt={2} flexWrap="wrap" spacing={1}>
+          {story.series.map((se) => (
+            <Tag
+              key={se.series.id}
+              size="sm"
+              colorScheme="teal"
+              variant="subtle"
+              as={RouterLink}
+              to={`/series/${se.series.id}`}
+              _hover={{ opacity: 0.8 }}
+              cursor="pointer"
+            >
+              {se.series.title}
+            </Tag>
+          ))}
+        </HStack>
+      )}
     </Box>
   );
 }

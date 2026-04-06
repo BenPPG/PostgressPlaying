@@ -7,6 +7,7 @@ import commentRoutes from "./routes/comments.js";
 import tagRoutes from "./routes/tags.js";
 import userRoutes from "./routes/users.js";
 import adminRoutes from "./routes/admin.js";
+import seriesRoutes from "./routes/series.js";
 
 const app = Fastify({ logger: true });
 
@@ -20,6 +21,7 @@ await app.register(commentRoutes, { prefix: "/api" });
 await app.register(tagRoutes, { prefix: "/api/tags" });
 await app.register(userRoutes, { prefix: "/api/users" });
 await app.register(adminRoutes, { prefix: "/api/admin" });
+await app.register(seriesRoutes, { prefix: "/api/series" });
 
 app.get("/api/health", async () => ({ status: "ok" }));
 
