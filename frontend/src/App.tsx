@@ -13,6 +13,7 @@ import Profile from "./pages/Profile";
 import AdminPanel from "./pages/AdminPanel";
 import SeriesDetail from "./pages/SeriesDetail";
 import SeriesManage from "./pages/SeriesManage";
+import ListDetail from "./pages/ListDetail";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -52,6 +53,7 @@ export default function App() {
                 path="/my-series"
                 element={<ProtectedRoute><SeriesManage /></ProtectedRoute>}
               />
+              <Route path="/lists/:id" element={<ListDetail />} />
             </Route>
           </Routes>
         </AuthProvider>

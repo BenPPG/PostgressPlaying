@@ -25,11 +25,14 @@ export default function MoreByAuthorStrip({ authorUsername, currentStoryId }: Mo
   if (filtered.length === 0) return null;
 
   return (
-    <Box mb={8}>
-      <Heading size="md" mb={4} color={c.heading}>
-        More by this author
-      </Heading>
-      <HStack spacing={4} overflowX="auto" pb={2}>
+    <Box mb={8} bg={c.cardBg} borderWidth="1px" borderColor={c.border} rounded="lg" overflow="hidden">
+      <Box px={4} pt={4} pb={3}>
+        <Heading size="sm" color={c.heading}>
+          More by this author
+        </Heading>
+        <Box h="2px" w="24" bg={c.accentBg} mt={2} />
+      </Box>
+      <HStack spacing={4} overflowX="auto" px={4} pb={4}>
         {filtered.map((story: StoryType) => (
           <Box key={story.id} minW="260px" flexShrink={0}>
             <StoryCard story={story} />

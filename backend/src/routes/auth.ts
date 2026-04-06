@@ -40,6 +40,14 @@ export default async function authRoutes(app: FastifyInstance) {
       data: { email, username, passwordHash },
     });
 
+    // Create the two default lists every user gets
+    await prisma.storyList.createMany({
+      data: [
+        { name: "Favourites", description: "Your favourite stories.", isDefault: true, isPublic: false, ownerId: user.id },
+        { name: "Read Later", description: "Stories you want to read later.", isDefault: true, isPublic: false, ownerId: user.id },
+      ],
+    });
+
     const token = signToken({ userId: user.id, role: user.role });
     return reply.status(201).send({
       token,

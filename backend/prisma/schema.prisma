@@ -28,10 +28,11 @@ model User {
   role         Role      @default(USER)
   createdAt    DateTime  @default(now())
 
-  stories  Story[]
-  comments Comment[]
-  likes    Like[]
-  series   Series[]
+  stories    Story[]
+  comments   Comment[]
+  likes      Like[]
+  series     Series[]
+  storyLists StoryList[]
 }
 
 model Story {
@@ -47,10 +48,11 @@ model Story {
   authorId Int
   author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  tags     StoryTag[]
-  comments Comment[]
-  likes    Like[]
-  series   SeriesStory[]
+  tags      StoryTag[]
+  comments  Comment[]
+  likes     Like[]
+  series    SeriesStory[]
+  listItems StoryListItem[]
 
   @@index([authorId])
   @@index([status])
@@ -125,5 +127,34 @@ model SeriesStory {
   story  Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
   @@id([seriesId, storyId])
+  @@index([storyId])
+}
+
+model StoryList {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  isPublic    Boolean  @default(false)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownerId Int
+  owner   User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  items StoryListItem[]
+
+  @@index([ownerId])
+}
+
+model StoryListItem {
+  listId  Int
+  storyId Int
+  addedAt DateTime @default(now())
+
+  list  StoryList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  story Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@id([listId, storyId])
   @@index([storyId])
 }

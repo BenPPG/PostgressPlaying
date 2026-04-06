@@ -1,6 +1,6 @@
 import { Box, Button, Flex, Heading, HStack, Text } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
-import { FaEye, FaHeart, FaRegHeart } from "react-icons/fa";
+import { FaEye, FaHeart, FaRegHeart, FaBookmark } from "react-icons/fa";
 import { useColors } from "../../hooks/useColors";
 import type { StoryType } from "../../types/story";
 
@@ -10,6 +10,7 @@ interface StoryDetailHeaderProps {
   isOwner: boolean;
   likeLoading: boolean;
   onLike: () => void;
+  onAddToList?: () => void;
 }
 
 export default function StoryDetailHeader({
@@ -18,6 +19,7 @@ export default function StoryDetailHeader({
   isOwner,
   likeLoading,
   onLike,
+  onAddToList,
 }: StoryDetailHeaderProps) {
   const c = useColors();
 
@@ -53,6 +55,16 @@ export default function StoryDetailHeader({
               isLoading={likeLoading}
             >
               {story.userLiked ? "Liked" : "Like"} ({story._count?.likes ?? 0})
+            </Button>
+          )}
+          {user && onAddToList && (
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={<FaBookmark />}
+              onClick={onAddToList}
+            >
+              Save
             </Button>
           )}
           {isOwner && (

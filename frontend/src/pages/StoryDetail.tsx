@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams, Link as RouterLink } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -29,9 +29,9 @@ import StoryDetailHeader from "../components/story-detail/StoryDetailHeader";
 import StoryCommentsCard from "../components/story-detail/StoryCommentsCard";
 import MoreByAuthorStrip from "../components/story-detail/MoreByAuthorStrip";
 import SimilarStoriesCard from "../components/story-detail/SimilarStoriesCard";
-import SeriesMoreList from "../components/story-detail/SeriesMoreList";
 import { useAuth } from "../hooks/useAuth";
 import { useColors } from "../hooks/useColors";
+import AddToListModal from "../components/AddToListModal";
 
 
 interface SeriesTabContentProps {
@@ -129,6 +129,9 @@ export default function StoryDetail() {
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
   const [copied, setCopied] = useState(false);
+  const [listModalOpen, setListModalOpen] = useState(false);
+  const openListModal = useCallback(() => setListModalOpen(true), []);
+  const closeListModal = useCallback(() => setListModalOpen(false), []);
   const c = useColors();
 
   const { data: story, isLoading } = useQuery({
@@ -202,7 +205,17 @@ export default function StoryDetail() {
         isOwner={isOwner}
         likeLoading={likeMutation.isPending}
         onLike={() => likeMutation.mutate()}
+        onAddToList={user ? openListModal : undefined}
       />
+
+      {user && (
+        <AddToListModal
+          isOpen={listModalOpen}
+          onClose={closeListModal}
+          storyId={story.id}
+          storyTitle={story.title}
+        />
+      )}
 
       {/* Two-column layout: main content + sidebar */}
       <Flex gap={8} align="flex-start" direction={{ base: "column", xl: "row" }}>
@@ -223,20 +236,6 @@ export default function StoryDetail() {
         {story.content}
       </Box>
 
-        <Box mb={8}>
-          <Heading size="md" mb={4} color={headingColor}>
-            More in this series
-          </Heading>
-          <VStack align="stretch" spacing={4}>
-            {seriesEntries.map((se) => (
-              <SeriesMoreList
-                key={se.series.id}
-                seriesId={se.series.id}
-                currentStoryId={story.id}
-              />
-            ))}
-          </VStack>
-        </Box>
 
       <StoryCommentsCard
         story={story}
