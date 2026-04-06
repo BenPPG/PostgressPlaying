@@ -98,38 +98,89 @@ export default function Home() {
   return (
     <Box>
       <Box
-        bgGradient="linear(to-r, purple.500, purple.600)"
-        borderRadius="xl"
+        bgGradient="linear(to-br, purple.700, purple.500, pink.400)"
+        borderRadius="2xl"
         color="white"
-        p={8}
+        p={{ base: 8, md: 12 }}
         mb={6}
+        position="relative"
+        overflow="hidden"
       >
-        <Stack direction={{ base: "column", md: "row" }} align="center" justify="space-between" spacing={4}>
-          <Box>
-            <Heading size="xl" mb={2}>
+        {/* Decorative background blobs */}
+        <Box
+          position="absolute"
+          top="-60px"
+          right="-60px"
+          w="260px"
+          h="260px"
+          borderRadius="full"
+          bg="whiteAlpha.100"
+          pointerEvents="none"
+        />
+        <Box
+          position="absolute"
+          bottom="-80px"
+          left="38%"
+          w="340px"
+          h="340px"
+          borderRadius="full"
+          bg="whiteAlpha.50"
+          pointerEvents="none"
+        />
+
+        <Stack
+          direction={{ base: "column", md: "row" }}
+          align="center"
+          justify="space-between"
+          spacing={8}
+          position="relative"
+        >
+          <Box maxW="xl">
+            <Text
+              fontSize="xs"
+              fontWeight="bold"
+              letterSpacing="widest"
+              textTransform="uppercase"
+              color="whiteAlpha.800"
+              mb={3}
+            >
+              ✦ Storytelling Community
+            </Text>
+            <Heading size="2xl" mb={4} fontWeight="extrabold" lineHeight="1.15">
               Discover captivating short stories
             </Heading>
-            <Text fontSize="lg" maxW="2xl" color={c.heroSubtext}>
+            <Text fontSize="md" color="whiteAlpha.900" lineHeight="tall">
               Browse trending content, explore tags, and get inspired by top authors from our storytelling community.
             </Text>
           </Box>
-          <HStack>
+
+          <VStack spacing={3} align="stretch" minW="168px">
             <Button
               as="a"
               href="#stories"
-              colorScheme="whiteAlpha"
+              size="lg"
               variant="outline"
-              borderColor="white"
-              _hover={{ bg: "whiteAlpha.200" }}
+              borderColor="whiteAlpha.600"
+              color="white"
+              _hover={{ bg: "whiteAlpha.200", borderColor: "white" }}
             >
               Start Browsing
             </Button>
             {user && (
-              <Button as="a" href="/stories/new" colorScheme="orange" bg={c.ctaBg} _hover={{ bg: c.ctaBgHover }}>
+              <Button
+                as="a"
+                href="/stories/new"
+                size="lg"
+                bg={c.ctaBg}
+                color="white"
+                fontWeight="bold"
+                _hover={{ bg: c.ctaBgHover, transform: "translateY(-1px)" }}
+                transition="all 0.2s"
+              >
                 Write a Story
               </Button>
             )}
-          </HStack>
+          </VStack>
         </Stack>
       </Box>
 
