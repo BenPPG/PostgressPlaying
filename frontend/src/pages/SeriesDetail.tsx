@@ -30,7 +30,7 @@ export default function SeriesDetail() {
   if (isLoading) {
     return (
       <Center py={12}>
-        <Spinner size="xl" color="purple.500" />
+        <Spinner size="xl" color={c.accent} />
       </Center>
     );
   }
@@ -59,7 +59,7 @@ export default function SeriesDetail() {
         </HStack>
         <Text fontSize="sm" color={c.subtext} mb={1}>
           by{" "}
-          <Link as={RouterLink} to={`/profile/${series.author?.id}`} color="purple.500">
+          <Link as={RouterLink} to={`/profile/${series.author?.id}`} color={c.accent}>
             {series.author?.username}
           </Link>
         </Text>
@@ -83,7 +83,7 @@ export default function SeriesDetail() {
               <Box
                 minW="32px"
                 h="32px"
-                bg="purple.500"
+                bg={c.accentBg}
                 color="white"
                 rounded="full"
                 display="flex"

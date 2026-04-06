@@ -52,8 +52,8 @@ export default function Layout() {
               alignItems="center"
               fontSize="2xl"
               fontWeight="bold"
-              color="purple.500"
-              _hover={{ color: "purple.400", textDecoration: "none" }}
+              color={c.accent}
+              _hover={{ color: c.accentHover, textDecoration: "none" }}
             >
               <Image src={logo} alt="Novara logo" boxSize={14} objectFit="contain" mr={4} />
               <Box>

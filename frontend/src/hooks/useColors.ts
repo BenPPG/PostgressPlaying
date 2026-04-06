@@ -22,6 +22,18 @@ export function useColors() {
     link: useColorModeValue("gray.600", "gray.300"),
     linkHover: useColorModeValue("gray.900", "white"),
     accent: useColorModeValue("purple.600", "purple.300"),
+    accentHover: useColorModeValue("purple.400", "purple.100"),
+    accentBg: useColorModeValue("purple.500", "purple.400"),
+
+    // Status
+    error: useColorModeValue("red.500", "red.400"),
+
+    // Hero sections (on fixed purple gradient banners)
+    heroSubtext: useColorModeValue("gray.100", "gray.100"),
+
+    // CTA button
+    ctaBg: useColorModeValue("orange.400", "orange.400"),
+    ctaBgHover: useColorModeValue("orange.500", "orange.500"),
 
     // Interactive
     hoverBg: useColorModeValue("gray.100", "gray.700"),

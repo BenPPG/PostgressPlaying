@@ -79,7 +79,7 @@ function SortableStoryRow({ story, seriesId, onRemove }: SortableStoryRowProps) 
         <FaGripVertical />
       </Box>
       <Text flex={1} fontSize="sm" fontWeight="medium" color={c.heading} noOfLines={1}>
-        <Link as={RouterLink} to={`/stories/${story.id}`} color="purple.500">
+        <Link as={RouterLink} to={`/stories/${story.id}`} color={c.accent}>
           {story.title}
         </Link>
       </Text>
@@ -294,7 +294,7 @@ function SeriesCard({ series, authorStories }: SeriesCardProps) {
           {/* Story list */}
           {loadingDetail && !storiesLoaded ? (
             <Center py={4}>
-              <Spinner size="sm" color="purple.500" />
+              <Spinner size="sm" color={c.accent} />
             </Center>
           ) : localStories.length === 0 ? (
             <Text fontSize="sm" color={c.subtext} mb={3}>
@@ -458,7 +458,7 @@ export default function SeriesManage() {
 
       {isLoading ? (
         <Center py={12}>
-          <Spinner size="xl" color="purple.500" />
+          <Spinner size="xl" color={c.accent} />
         </Center>
       ) : mySeries?.length === 0 ? (
         <Center py={12}>

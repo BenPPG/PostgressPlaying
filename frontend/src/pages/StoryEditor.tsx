@@ -172,7 +172,7 @@ export default function StoryEditor() {
   if (isEdit && isLoading) {
     return (
       <Center py={12}>
-        <Spinner size="xl" color="purple.500" />
+        <Spinner size="xl" color={c.accent} />
       </Center>
     );
   }

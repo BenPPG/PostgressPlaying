@@ -75,7 +75,7 @@ export default function Login() {
         </form>
         <Text mt={4} fontSize="sm" textAlign="center" color={c.subtext}>
           Don't have an account?{" "}
-          <Link as={RouterLink} to="/register" color="purple.500">
+          <Link as={RouterLink} to="/register" color={c.accent}>
             Register
           </Link>
         </Text>

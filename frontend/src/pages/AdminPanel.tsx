@@ -55,7 +55,7 @@ export default function AdminPanel() {
   if (isLoading) {
     return (
       <Center py={12}>
-        <Spinner size="xl" color="purple.500" />
+        <Spinner size="xl" color={c.accent} />
       </Center>
     );
   }

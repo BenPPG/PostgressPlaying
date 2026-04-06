@@ -109,7 +109,7 @@ export default function Home() {
             <Heading size="xl" mb={2}>
               Discover captivating short stories
             </Heading>
-            <Text fontSize="lg" maxW="2xl" color="gray.100">
+            <Text fontSize="lg" maxW="2xl" color={c.heroSubtext}>
               Browse trending content, explore tags, and get inspired by top authors from our storytelling community.
             </Text>
           </Box>
@@ -125,7 +125,7 @@ export default function Home() {
               Start Browsing
             </Button>
             {user && (
-              <Button as="a" href="/stories/new" colorScheme="orange" bg="orange.400" _hover={{ bg: "orange.500" }}>
+              <Button as="a" href="/stories/new" colorScheme="orange" bg={c.ctaBg} _hover={{ bg: c.ctaBgHover }}>
                 Write a Story
               </Button>
             )}
@@ -146,7 +146,7 @@ export default function Home() {
           _hover={{ transform: "translateY(-4px)", shadow: "lg", bg: c.hoverBg }}
           onClick={() => navigate("/search")}
         >
-          <Text fontSize="sm" fontWeight="semibold" color="purple.500" mb={3}>
+          <Text fontSize="sm" fontWeight="semibold" color={c.accent} mb={3}>
             Search stories
           </Text>
           <Heading size="md" mb={2}>
@@ -174,7 +174,7 @@ export default function Home() {
             }
           }}
         >
-          <Text fontSize="sm" fontWeight="semibold" color="purple.500" mb={3}>
+          <Text fontSize="sm" fontWeight="semibold" color={c.accent} mb={3}>
             Top authors
           </Text>
           <Heading size="md" mb={2}>
@@ -198,7 +198,7 @@ export default function Home() {
           onClick={() => randomStory && navigate(`/stories/${randomStory.id}`)}
           opacity={randomStory ? 1 : 0.65}
         >
-          <Text fontSize="sm" fontWeight="semibold" color="purple.500" mb={3}>
+          <Text fontSize="sm" fontWeight="semibold" color={c.accent} mb={3}>
             Random story
           </Text>
           <Heading size="md" mb={2}>
@@ -244,15 +244,15 @@ export default function Home() {
 
       {isLoading ? (
         <Center py={12}>
-          <Spinner size="xl" color="purple.500" />
+          <Spinner size="xl" color={c.accent} />
         </Center>
       ) : isError ? (
         <Center py={12}>
-          <Text color="red.500">Failed to load stories. Please refresh.</Text>
+          <Text color={c.error}>Failed to load stories. Please refresh.</Text>
         </Center>
       ) : stories.length === 0 ? (
         <Center py={12}>
-          <Text color="gray.500">No stories found for current filters.</Text>
+          <Text color={c.subtext}>No stories found for current filters.</Text>
         </Center>
       ) : (
         <VStack align="stretch" spacing={8} id="stories">

@@ -9,101 +9,116 @@ import {
   VStack,
   Tag,
   Button,
-  Textarea,
   Avatar,
-  Divider,
-  IconButton,
   Center,
   Spinner,
   Link,
   Flex,
   Badge,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
 } from "@chakra-ui/react";
-import { DeleteIcon, ChevronLeftIcon, ChevronRightIcon } from "@chakra-ui/icons";
-import { FaEye, FaHeart, FaRegHeart } from "react-icons/fa";
+import { ChevronLeftIcon, ChevronRightIcon } from "@chakra-ui/icons";
+import { FaCopy } from "react-icons/fa";
 import { toast } from "sonner";
 import api from "../api/client";
+import StoryDetailHeader from "../components/story-detail/StoryDetailHeader";
+import StoryCommentsCard from "../components/story-detail/StoryCommentsCard";
+import MoreByAuthorStrip from "../components/story-detail/MoreByAuthorStrip";
+import SimilarStoriesCard from "../components/story-detail/SimilarStoriesCard";
+import SeriesMoreList from "../components/story-detail/SeriesMoreList";
 import { useAuth } from "../hooks/useAuth";
 import { useColors } from "../hooks/useColors";
 
-interface SeriesNavBarProps {
+
+interface SeriesTabContentProps {
   seriesId: number;
   seriesTitle: string;
   currentStoryId: number;
   currentOrder: number;
 }
 
-function SeriesNavBar({ seriesId, seriesTitle, currentStoryId, currentOrder }: SeriesNavBarProps) {
+function SeriesTabContent({ seriesId, seriesTitle, currentStoryId, currentOrder }: SeriesTabContentProps) {
   const c = useColors();
-
   const { data: seriesData } = useQuery({
     queryKey: ["series", seriesId],
     queryFn: () => api.get(`/series/${seriesId}`).then((r) => r.data),
   });
 
   const stories: { id: number; order: number; title: string }[] = seriesData?.stories ?? [];
-  const total = stories.length;
   const currentIndex = stories.findIndex((s) => s.id === currentStoryId);
   const position = currentIndex >= 0 ? currentIndex : stories.findIndex((s) => s.order === currentOrder);
   const prevStory = position > 0 ? stories[position - 1] : null;
-  const nextStory = position >= 0 && position < total - 1 ? stories[position + 1] : null;
+  const nextStory = position >= 0 && position < stories.length - 1 ? stories[position + 1] : null;
 
   return (
-    <Box
-      bg={c.cardBg}
-      borderWidth="1px"
-      borderColor="purple.200"
-      rounded="md"
-      px={4}
-      py={3}
-    >
-      <HStack justify="space-between" align="center" flexWrap="wrap" gap={2}>
-        <HStack spacing={2}>
-          <Badge colorScheme="purple" variant="subtle">Series</Badge>
-          <Link as={RouterLink} to={`/series/${seriesId}`} fontWeight="semibold" color="purple.500" fontSize="sm">
-            {seriesTitle}
-          </Link>
-          {total > 0 && (
-            <Text fontSize="xs" color={c.subtext}>
-              Part {position + 1} of {total}
-            </Text>
-          )}
-        </HStack>
-        <HStack spacing={2}>
-          {prevStory ? (
-            <Button
-              as={RouterLink}
-              to={`/stories/${prevStory.id}`}
-              size="xs"
-              variant="outline"
-              colorScheme="purple"
-              leftIcon={<ChevronLeftIcon />}
-            >
-              Prev
-            </Button>
-          ) : (
-            <Button size="xs" variant="outline" isDisabled leftIcon={<ChevronLeftIcon />}>
-              Prev
-            </Button>
-          )}
-          {nextStory ? (
-            <Button
-              as={RouterLink}
-              to={`/stories/${nextStory.id}`}
-              size="xs"
-              variant="outline"
-              colorScheme="purple"
-              rightIcon={<ChevronRightIcon />}
-            >
-              Next
-            </Button>
-          ) : (
-            <Button size="xs" variant="outline" isDisabled rightIcon={<ChevronRightIcon />}>
-              Next
-            </Button>
-          )}
-        </HStack>
+    <Box>
+      <Text fontSize="sm" fontWeight="semibold" mb={3}>
+        {seriesTitle}
+      </Text>
+      <HStack spacing={3} mb={4} flexWrap="wrap" w="full">
+        <Button
+          as={RouterLink}
+          to={prevStory ? `/stories/${prevStory.id}` : "#"}
+          flex={1}
+          size="sm"
+          variant={prevStory ? "outline" : "ghost"}
+          colorScheme="purple"
+          leftIcon={<ChevronLeftIcon />}
+          isDisabled={!prevStory}
+          minW="0"
+        >
+          Prev
+        </Button>
+        <Button
+          as={RouterLink}
+          to={nextStory ? `/stories/${nextStory.id}` : "#"}
+          flex={1}
+          size="sm"
+          variant={nextStory ? "solid" : "ghost"}
+          colorScheme="purple"
+          rightIcon={<ChevronRightIcon />}
+          isDisabled={!nextStory}
+          minW="0"
+        >
+          Next
+        </Button>
       </HStack>
+      {stories.length > 0 ? (
+        <VStack align="stretch" spacing={2} borderTop="1px" borderColor={c.borderSubtle} pt={3}>
+          {stories.map((storyItem) => (
+            <HStack key={storyItem.id} spacing={2} align="center">
+              <Badge
+                colorScheme={storyItem.id === currentStoryId ? "purple" : "purple"}
+                variant={storyItem.id === currentStoryId ? "solid" : "subtle"}
+                minW="28px"
+                textAlign="center"
+              >
+                {storyItem.order + 1}
+              </Badge>
+              <Link
+                as={RouterLink}
+                to={`/stories/${storyItem.id}`}
+                fontSize="sm"
+                color={storyItem.id === currentStoryId ? "purple.700" : "purple.500"}
+                fontWeight={storyItem.id === currentStoryId ? "semibold" : "medium"}
+              >
+                {storyItem.title}
+              </Link>
+              {storyItem.id === currentStoryId && (
+                <Text fontSize="xs" color={c.meta}>(current)</Text>
+              )}
+            </HStack>
+          ))}
+        </VStack>
+      ) : (
+        <Text fontSize="sm" color={c.subtext} fontStyle="italic">
+          No stories found for this series.
+        </Text>
+      )}
     </Box>
   );
 }
@@ -113,6 +128,7 @@ export default function StoryDetail() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
+  const [copied, setCopied] = useState(false);
   const c = useColors();
 
   const { data: story, isLoading } = useQuery({
@@ -155,7 +171,7 @@ export default function StoryDetail() {
   if (isLoading) {
     return (
       <Center py={12}>
-        <Spinner size="xl" color="purple.500" />
+        <Spinner size="xl" color={c.accent} />
       </Center>
     );
   }
@@ -163,7 +179,7 @@ export default function StoryDetail() {
   if (!story) {
     return (
       <Center py={12}>
-        <Text color="gray.500">Story not found.</Text>
+        <Text color={c.subtext}>Story not found.</Text>
       </Center>
     );
   }
@@ -175,71 +191,22 @@ export default function StoryDetail() {
     story.series ?? [];
 
   const headingColor = c.heading;
-  const textColor = c.subtext;
   const cardBg = c.cardBg;
   const borderColor = c.border;
 
   return (
-    <Box maxW="3xl" mx="auto">
-      {/* Header */}
-      <Heading size="xl" mb={2} color={headingColor}>
-        {story.title}
-      </Heading>
-      <HStack spacing={4} mb={4} fontSize="sm" color={textColor}>
-        <Link as={RouterLink} to={`/profile/${story.author.id}`} color="purple.500">
-          {story.author.username}
-        </Link>
-        <Text>{new Date(story.createdAt).toLocaleDateString()}</Text>
-        <HStack spacing={1} alignItems="center">
-          <FaEye />
-          <Text>{story.viewsCount} views</Text>
-        </HStack>
-      </HStack>
-      {story.tags?.length > 0 && (
-        <HStack mb={4} spacing={2}>
-          {story.tags.map((t: any) => (
-            <Tag key={t.id} colorScheme="purple" size="sm">
-              {t.name}
-            </Tag>
-          ))}
-        </HStack>
-      )}
+    <Box maxW="6xl" mx="auto">
+      <StoryDetailHeader
+        story={story}
+        user={user ?? undefined}
+        isOwner={isOwner}
+        likeLoading={likeMutation.isPending}
+        onLike={() => likeMutation.mutate()}
+      />
 
-      {/* Series membership + prev/next nav */}
-      {seriesEntries.length > 0 && (
-        <VStack align="stretch" spacing={3} mb={5}>
-          {seriesEntries.map((se) => (
-            <SeriesNavBar
-              key={se.series.id}
-              seriesId={se.series.id}
-              seriesTitle={se.series.title}
-              currentStoryId={Number(id)}
-              currentOrder={se.order}
-            />
-          ))}
-        </VStack>
-      )}
-
-      {/* Actions */}
-      <HStack mb={6} spacing={3}>
-        {user && (
-          <Button
-            size="sm"
-            colorScheme={story.userLiked ? "red" : "gray"}
-            variant={story.userLiked ? "solid" : "outline"}
-            leftIcon={story.userLiked ? <FaHeart /> : <FaRegHeart />}
-            onClick={() => likeMutation.mutate()}
-            isLoading={likeMutation.isPending}
-          >
-            {story.userLiked ? "Liked" : "Like"} ({story._count?.likes ?? 0})
-          </Button>
-        )}
-        {isOwner && (
-          <Button as={RouterLink} to={`/stories/${id}/edit`} size="sm" variant="outline">
-            Edit
-          </Button>
-        )}
-      </HStack>
+      {/* Two-column layout: main content + sidebar */}
+      <Flex gap={8} align="flex-start" direction={{ base: "column", xl: "row" }}>
+        <Box flex={1} minW={0}>
 
       {/* Story content */}
       <Box
@@ -256,65 +223,184 @@ export default function StoryDetail() {
         {story.content}
       </Box>
 
-      {/* Comments */}
-      <Divider mb={6} />
-      <Heading size="md" mb={4}>
-        Comments ({story._count?.comments ?? 0})
-      </Heading>
-
-      {user && (
-        <Box mb={6}>
-          <Textarea
-            placeholder="Write a comment..."
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            mb={2}
-            bg={c.cardBg}
-          />
-          <Button
-            colorScheme="purple"
-            size="sm"
-            onClick={() => {
-              if (comment.trim()) addComment.mutate(comment.trim());
-            }}
-            isLoading={addComment.isPending}
-            isDisabled={!comment.trim()}
-          >
-            Post Comment
-          </Button>
+        <Box mb={8}>
+          <Heading size="md" mb={4} color={headingColor}>
+            More in this series
+          </Heading>
+          <VStack align="stretch" spacing={4}>
+            {seriesEntries.map((se) => (
+              <SeriesMoreList
+                key={se.series.id}
+                seriesId={se.series.id}
+                currentStoryId={story.id}
+              />
+            ))}
+          </VStack>
         </Box>
-      )}
 
-      <VStack spacing={4} align="stretch">
-        {comments?.map((c: any) => (
-          <Box key={c.id} bg={cardBg} p={4} rounded="md" borderWidth="1px" borderColor={borderColor}>
-            <Flex justify="space-between" align="start">
-              <HStack spacing={3} mb={2}>
-                <Avatar size="xs" name={c.author.username} />
-                <Link as={RouterLink} to={`/profile/${c.author.id}`} fontWeight="medium" fontSize="sm" color="purple.600">
-                  {c.author.username}
-                </Link>
-                <Text fontSize="xs" color="gray.400">
-                  {new Date(c.createdAt).toLocaleDateString()}
-                </Text>
-              </HStack>
-              {(user?.id === c.author.id || user?.role === "ADMIN") && (
-                <IconButton
-                  aria-label="Delete comment"
-                  icon={<DeleteIcon />}
-                  size="xs"
-                  variant="ghost"
-                  colorScheme="red"
-                  onClick={() => deleteComment.mutate(c.id)}
-                />
-              )}
-            </Flex>
-            <Text fontSize="sm" whiteSpace="pre-wrap">
-              {c.content}
-            </Text>
+      <StoryCommentsCard
+        story={story}
+        comments={comments}
+        user={user ?? undefined}
+        commentValue={comment}
+        onCommentChange={setComment}
+        onCommentPost={() => {
+          if (comment.trim()) addComment.mutate(comment.trim());
+        }}
+        addCommentLoading={addComment.isPending}
+        onDeleteComment={(commentId) => deleteComment.mutate(commentId)}
+      />
+
+      <MoreByAuthorStrip authorUsername={story.author?.username ?? ""} currentStoryId={story.id} />
+        </Box>{/* end main column */}
+
+        {/* Sidebar */}
+        <Box
+          w={{ base: "full", xl: "300px" }}
+          flexShrink={0}
+          position="sticky"
+          top={4}
+          alignSelf="flex-start"
+        >
+          <Box
+            bg={cardBg}
+            borderWidth="1px"
+            borderColor={borderColor}
+            rounded="lg"
+            overflow="hidden"
+          >
+            <Tabs colorScheme="purple" size="sm">
+              <TabList px={4} pt={3}>
+                <Tab>Author</Tab>
+                <Tab>Tags</Tab>
+                <Tab>Series</Tab>
+                <Tab>Share</Tab>
+              </TabList>
+              <TabPanels>
+                {/* Author */}
+                <TabPanel>
+                  <HStack spacing={4} align="start">
+                    <Avatar
+                      size="md"
+                      name={story.author.username}
+                      src={story.author.avatarUrl ?? undefined}
+                    />
+                    <VStack align="start" spacing={1}>
+                      <Link
+                        as={RouterLink}
+                        to={`/profile/${story.author.id}`}
+                        fontWeight="semibold"
+                        color={c.accent}
+                      >
+                        {story.author.username}
+                      </Link>
+                      {story.author.bio ? (
+                        <Text fontSize="sm" color={c.subtext}>
+                          {story.author.bio}
+                        </Text>
+                      ) : (
+                        <Text fontSize="sm" color={c.meta} fontStyle="italic">
+                          No bio provided.
+                        </Text>
+                      )}
+                    </VStack>
+                  </HStack>
+                </TabPanel>
+
+                {/* Tags */}
+                <TabPanel>
+                  {story.tags?.length > 0 ? (
+                    <HStack spacing={2} flexWrap="wrap">
+                      {story.tags.map((t: any) => (
+                        <Tag
+                          key={t.id}
+                          as={RouterLink}
+                          to={`/?tag=${encodeURIComponent(t.name)}`}
+                          colorScheme="purple"
+                          size="md"
+                          cursor="pointer"
+                          _hover={{ opacity: 0.8 }}
+                        >
+                          {t.name}
+                        </Tag>
+                      ))}
+                    </HStack>
+                  ) : (
+                    <Text fontSize="sm" color={c.subtext} fontStyle="italic">
+                      No tags on this story.
+                    </Text>
+                  )}
+                </TabPanel>
+
+                {/* Series */}
+                <TabPanel>
+                  {seriesEntries.length > 0 ? (
+                    <VStack align="stretch" spacing={4}>
+                      {seriesEntries.map((se) => (
+                        <SeriesTabContent
+                          key={se.series.id}
+                          seriesId={se.series.id}
+                          seriesTitle={se.series.title}
+                          currentStoryId={Number(id)}
+                          currentOrder={se.order}
+                        />
+                      ))}
+                    </VStack>
+                  ) : (
+                    <Text fontSize="sm" color={c.subtext} fontStyle="italic">
+                      This story is not part of a series.
+                    </Text>
+                  )}
+                </TabPanel>
+
+                {/* Share */}
+                <TabPanel>
+                  <VStack align="start" spacing={3}>
+                    <Text fontSize="sm" color={c.subtext}>
+                      Share this story:
+                    </Text>
+                    <HStack spacing={2} w="full">
+                      <Box
+                        flex={1}
+                        px={3}
+                        py={2}
+                        bg={c.inputBg}
+                        borderWidth="1px"
+                        borderColor={borderColor}
+                        rounded="md"
+                        fontSize="sm"
+                        color={c.subtext}
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        whiteSpace="nowrap"
+                      >
+                        {window.location.href}
+                      </Box>
+                      <Button
+                        size="sm"
+                        colorScheme={copied ? "green" : "purple"}
+                        leftIcon={<FaCopy />}
+                        onClick={() => {
+                          navigator.clipboard.writeText(window.location.href);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                      >
+                        {copied ? "Copied!" : "Copy"}
+                      </Button>
+                    </HStack>
+                  </VStack>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
           </Box>
-        ))}
-      </VStack>
+
+          <SimilarStoriesCard
+            tagSlugs={story.tags?.map((tag: any) => tag.slug).filter(Boolean) ?? []}
+            currentStoryId={story.id}
+          />
+        </Box>
+      </Flex>
     </Box>
   );
 }

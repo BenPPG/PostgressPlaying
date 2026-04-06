@@ -84,7 +84,7 @@ export default function Register() {
         </form>
         <Text mt={4} fontSize="sm" textAlign="center" color={c.subtext}>
           Already have an account?{" "}
-          <Link as={RouterLink} to="/login" color="purple.500">
+          <Link as={RouterLink} to="/login" color={c.accent}>
             Log in
           </Link>
         </Text>

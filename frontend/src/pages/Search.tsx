@@ -136,7 +136,7 @@ export default function Search() {
             <Heading size="xl" mb={2}>
               Search Novara stories
             </Heading>
-            <Text fontSize="lg" maxW="2xl" color="gray.100">
+            <Text fontSize="lg" maxW="2xl" color={c.heroSubtext}>
               Find stories by keyword, author, tag, or mood across the entire library.
             </Text>
           </Box>
@@ -155,7 +155,7 @@ export default function Search() {
         <Stack direction={{ base: "column", md: "row" }} spacing={3} mb={4}>
           <InputGroup flex={1}>
             <InputLeftElement pointerEvents="none">
-              <SearchIcon color="gray.400" />
+              <SearchIcon color={c.meta} />
             </InputLeftElement>
             <Input
               placeholder="Search stories..."
@@ -192,7 +192,7 @@ export default function Search() {
         <Divider borderColor={c.borderSubtle} mb={4} />
 
         <HStack mb={3} spacing={2}>
-          <Icon as={FiTag} color="purple.400" boxSize={4} />
+          <Icon as={FiTag} color={c.accent} boxSize={4} />
           <Text
             fontWeight="semibold"
             fontSize="xs"
@@ -206,7 +206,7 @@ export default function Search() {
 
         <InputGroup maxW="sm" mb={3}>
           <InputLeftElement pointerEvents="none">
-            <SearchIcon color="gray.400" />
+            <SearchIcon color={c.meta} />
           </InputLeftElement>
           <Input
             placeholder="Search tags..."
@@ -283,11 +283,11 @@ export default function Search() {
 
       {isLoading ? (
         <Center py={12}>
-          <Spinner size="xl" color="purple.500" />
+          <Spinner size="xl" color={c.accent} />
         </Center>
       ) : isError ? (
         <Center py={12}>
-          <Text color="red.500">Unable to load search results. Please try again.</Text>
+          <Text color={c.error}>Unable to load search results. Please try again.</Text>
         </Center>
       ) : (
         <VStack align="stretch" spacing={4}>
