@@ -260,23 +260,8 @@ export default async function storyRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid story ID" });
     }
 
-    const story = await prisma.story.update({
-      where: { id: storyId },
-      data: { viewsCount: { increment: 1 } },
-      include: {
-        author: { select: { id: true, username: true, avatarUrl: true, bio: true } },
-        tags: { include: { tag: true } },
-        series: { orderBy: { order: "asc" }, include: { series: { select: { id: true, title: true, slug: true } } } },
-        _count: { select: { comments: true, likes: true } },
-      },
-    });
-
-    if (!story) {
-      return reply.status(404).send({ error: "Story not found" });
-    }
-
-    // Check if current user liked this story
-    let userLiked = false;
+    // Resolve authenticated user first (needed for both view counting and like status)
+    let loggedInUserId: number | null = null;
     const authHeader = request.headers.authorization;
     if (authHeader?.startsWith("Bearer ")) {
       try {
@@ -285,13 +270,51 @@ export default async function storyRoutes(app: FastifyInstance) {
           authHeader.slice(7),
           process.env.JWT_SECRET || "dev-secret"
         ) as { userId: number };
-        const like = await prisma.like.findUnique({
-          where: { storyId_userId: { storyId, userId: decoded.userId } },
-        });
-        userLiked = !!like;
+        loggedInUserId = decoded.userId;
       } catch {
-        // Not logged in or invalid token — ignore
+        // Invalid token — treat as unauthenticated
       }
+    }
+
+    const storyInclude = {
+      author: { select: { id: true, username: true, avatarUrl: true, bio: true } },
+      tags: { include: { tag: true } },
+      series: { orderBy: { order: "asc" as const }, include: { series: { select: { id: true, title: true, slug: true } } } },
+      _count: { select: { comments: true, likes: true } },
+    };
+
+    // Fetch the story first to know the author before deciding whether to count the view
+    const story = await (async () => {
+      if (loggedInUserId === null) {
+        // Not logged in — no view count
+        return prisma.story.findUnique({ where: { id: storyId }, include: storyInclude });
+      }
+      // Peek at the authorId without incrementing
+      const peek = await prisma.story.findUnique({ where: { id: storyId }, select: { authorId: true } });
+      if (!peek) return null;
+      if (peek.authorId === loggedInUserId) {
+        // Viewer is the author — no view count
+        return prisma.story.findUnique({ where: { id: storyId }, include: storyInclude });
+      }
+      // Logged-in non-author — increment view count
+      return prisma.story.update({
+        where: { id: storyId },
+        data: { viewsCount: { increment: 1 } },
+        include: storyInclude,
+      }).catch(() => null);
+    })();
+
+    if (!story) {
+      return reply.status(404).send({ error: "Story not found" });
+    }
+
+    // Check if current user liked this story
+    let userLiked = false;
+    if (loggedInUserId !== null) {
+      const like = await prisma.like.findUnique({
+        where: { storyId_userId: { storyId, userId: loggedInUserId } },
+      });
+      userLiked = !!like;
     }
 
     return reply.send({
