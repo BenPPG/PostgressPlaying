@@ -171,6 +171,29 @@ export default function StoryDetail() {
     },
   });
 
+  const authorId = story?.author?.id;
+  const { data: authorProfile } = useQuery({
+    queryKey: ["user", authorId],
+    queryFn: () => api.get(`/users/${authorId}`).then((r) => r.data),
+    enabled: !!authorId && !!user && user.id !== authorId,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: () => api.post(`/users/${authorId}/follow`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", authorId] });
+      toast.success(`Following ${story?.author?.username}`);
+    },
+  });
+
+  const unfollowMutation = useMutation({
+    mutationFn: () => api.delete(`/users/${authorId}/follow`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", authorId] });
+      toast.success(`Unfollowed ${story?.author?.username}`);
+    },
+  });
+
   if (isLoading) {
     return (
       <Center py={12}>
@@ -250,7 +273,7 @@ export default function StoryDetail() {
         onDeleteComment={(commentId) => deleteComment.mutate(commentId)}
       />
 
-      <MoreByAuthorStrip authorUsername={story.author?.username ?? ""} currentStoryId={story.id} />
+      <MoreByAuthorStrip authorId={story.author?.id} authorUsername={story.author?.username ?? ""} currentStoryId={story.id} />
         </Box>{/* end main column */}
 
         {/* Sidebar */}
@@ -284,7 +307,7 @@ export default function StoryDetail() {
                       name={story.author.username}
                       src={story.author.avatarUrl ?? undefined}
                     />
-                    <VStack align="start" spacing={1}>
+                    <VStack align="start" spacing={1} flex={1}>
                       <Link
                         as={RouterLink}
                         to={`/profile/${story.author.id}`}
@@ -304,6 +327,23 @@ export default function StoryDetail() {
                       )}
                     </VStack>
                   </HStack>
+                  {user && user.id !== story.author.id && (
+                    <Button
+                      mt={4}
+                      size="sm"
+                      w="full"
+                      colorScheme="purple"
+                      variant={authorProfile?.isFollowing ? "outline" : "solid"}
+                      isLoading={followMutation.isPending || unfollowMutation.isPending}
+                      onClick={() =>
+                        authorProfile?.isFollowing
+                          ? unfollowMutation.mutate()
+                          : followMutation.mutate()
+                      }
+                    >
+                      {authorProfile?.isFollowing ? "Following" : "Follow"}
+                    </Button>
+                  )}
                 </TabPanel>
 
                 {/* Tags */}
