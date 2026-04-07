@@ -49,6 +49,7 @@ import api from "../api/client";
 import StoryCard from "../components/StoryCard";
 import { useAuth } from "../hooks/useAuth";
 import { useColors } from "../hooks/useColors";
+import type { UserProfileType, FollowingUser } from "../types/story";
 
 interface StoryList {
   id: number;
@@ -81,10 +82,51 @@ export default function Profile() {
   const [deletingListId, setDeletingListId] = useState<number | null>(null);
   const [deletingListName, setDeletingListName] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<UserProfileType>({
     queryKey: ["profile", profileId],
     queryFn: () => api.get(`/users/${profileId}`).then((r) => r.data),
     enabled: !!profileId,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: () => api.post(`/users/${profileId}/follow`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", profileId] });
+    },
+    onError: () => toast({ title: "Failed to follow user", status: "error" }),
+  });
+
+  const unfollowMutation = useMutation({
+    mutationFn: () => api.delete(`/users/${profileId}/follow`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", profileId] });
+    },
+    onError: () => toast({ title: "Failed to unfollow user", status: "error" }),
+  });
+
+  const { data: followingData = [], isLoading: followingLoading } = useQuery<FollowingUser[]>({
+    queryKey: ["following", profileId],
+    queryFn: () => api.get(`/users/${profileId}/following`).then((r) => r.data),
+    enabled: !!profileId,
+  });
+
+  // Per-user follow/unfollow inside the Following tab
+  const followUserMutation = useMutation({
+    mutationFn: (targetId: number) => api.post(`/users/${targetId}/follow`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["following", profileId] });
+      queryClient.invalidateQueries({ queryKey: ["profile", profileId] });
+    },
+    onError: () => toast({ title: "Failed to follow user", status: "error" }),
+  });
+
+  const unfollowUserMutation = useMutation({
+    mutationFn: (targetId: number) => api.delete(`/users/${targetId}/follow`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["following", profileId] });
+      queryClient.invalidateQueries({ queryKey: ["profile", profileId] });
+    },
+    onError: () => toast({ title: "Failed to unfollow user", status: "error" }),
   });
 
   const { data: listsData = [] } = useQuery<StoryList[]>({
@@ -246,7 +288,31 @@ export default function Profile() {
         <HStack spacing={6} fontSize="sm" color={c.meta}>
           <Text>Joined {new Date(data.createdAt).toLocaleDateString()}</Text>
           <Text>{data._count?.stories ?? 0} stories</Text>
+          <Text>{data.followersCount ?? 0} followers</Text>
+          <Text>{data.followingCount ?? 0} following</Text>
         </HStack>
+        {!isOwnProfile && user && (
+          data.isFollowing ? (
+            <Button
+              size="sm"
+              variant="outline"
+              colorScheme="purple"
+              isLoading={unfollowMutation.isPending}
+              onClick={() => unfollowMutation.mutate()}
+            >
+              Unfollow
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              colorScheme="purple"
+              isLoading={followMutation.isPending}
+              onClick={() => followMutation.mutate()}
+            >
+              Follow
+            </Button>
+          )
+        )}
       </VStack>
 
       <Divider mb={6} />
@@ -255,6 +321,7 @@ export default function Profile() {
         <TabList>
           <Tab>Stories</Tab>
           <Tab>Lists</Tab>
+          <Tab>Following {data.followingCount > 0 && `(${data.followingCount})`}</Tab>
         </TabList>
         <TabPanels>
           {/* Stories tab */}
@@ -375,6 +442,82 @@ export default function Profile() {
                   </Box>
                 ))}
               </SimpleGrid>
+            )}
+          </TabPanel>
+
+          {/* Following tab */}
+          <TabPanel px={0}>
+            {followingLoading ? (
+              <Center py={8}>
+                <Spinner size="lg" color={c.accent} />
+              </Center>
+            ) : followingData.length === 0 ? (
+              <Text color={c.meta}>
+                {isOwnProfile ? "You aren't following anyone yet." : "Not following anyone."}
+              </Text>
+            ) : (
+              <VStack spacing={3} align="stretch">
+                {followingData.map((followed) => (
+                  <Box
+                    key={followed.id}
+                    bg={c.cardBg}
+                    borderWidth="1px"
+                    borderColor={c.border}
+                    rounded="lg"
+                    p={4}
+                  >
+                    <HStack justify="space-between" align="center" spacing={4}>
+                      <HStack spacing={3} flex={1} minW={0}>
+                        <Avatar size="sm" name={followed.username} src={followed.avatarUrl ?? undefined} />
+                        <VStack align="start" spacing={0} minW={0}>
+                          <Link
+                            as={RouterLink}
+                            to={`/profile/${followed.id}`}
+                            fontWeight="semibold"
+                            color={c.heading}
+                            _hover={{ color: c.accent }}
+                            noOfLines={1}
+                          >
+                            {followed.username}
+                          </Link>
+                          {followed.bio && (
+                            <Text fontSize="xs" color={c.subtext} noOfLines={1}>
+                              {followed.bio}
+                            </Text>
+                          )}
+                          <Text fontSize="xs" color={c.meta}>
+                            {followed._count.stories} {followed._count.stories === 1 ? "story" : "stories"} · {followed._count.followers} {followed._count.followers === 1 ? "follower" : "followers"}
+                          </Text>
+                        </VStack>
+                      </HStack>
+                      {user && user.id !== followed.id && (
+                        followed.isFollowing ? (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            colorScheme="purple"
+                            flexShrink={0}
+                            isLoading={unfollowUserMutation.isPending && unfollowUserMutation.variables === followed.id}
+                            onClick={() => unfollowUserMutation.mutate(followed.id)}
+                          >
+                            Unfollow
+                          </Button>
+                        ) : (
+                          <Button
+                            size="xs"
+                            colorScheme="purple"
+                            flexShrink={0}
+                            isLoading={followUserMutation.isPending && followUserMutation.variables === followed.id}
+                            onClick={() => followUserMutation.mutate(followed.id)}
+                          >
+                            Follow
+                          </Button>
+                        )
+                      )}
+                    </HStack>
+                  </Box>
+                ))}
+              </VStack>
             )}
           </TabPanel>
         </TabPanels>

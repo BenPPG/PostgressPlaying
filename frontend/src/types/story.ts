@@ -25,12 +25,34 @@ export type StoryType = {
   summary?: string | null;
   createdAt: string;
   viewsCount: number;
-  author?: { id: number; username: string };
+  author?: { id: number; username: string; avatarUrl?: string | null };
   authorId?: number;
   authorUsername?: string;
   tags: TagType[];
   series?: SeriesEntryType[];
   _count: { comments: number; likes: number };
+};
+
+export type UserProfileType = {
+  id: number;
+  username: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  createdAt: string;
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  _count: { stories: number };
+  stories: StoryType[];
+};
+
+export type FollowingUser = {
+  id: number;
+  username: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  isFollowing: boolean;
+  _count: { stories: number; followers: number };
 };
 
 export type StoriesResponse = {
@@ -45,3 +67,4 @@ export type CursorStoriesResponse = {
   nextCursor: string | null;
   hasMore: boolean;
 };
+

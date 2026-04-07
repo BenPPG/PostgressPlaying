@@ -33,6 +33,8 @@ model User {
   likes      Like[]
   series     Series[]
   storyLists StoryList[]
+  followers  Follow[]   @relation("following")
+  following  Follow[]   @relation("follower")
 }
 
 model Story {
@@ -157,4 +159,16 @@ model StoryListItem {
 
   @@id([listId, storyId])
   @@index([storyId])
+}
+
+model Follow {
+  followerId  Int
+  followingId Int
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("follower",  fields: [followerId],  references: [id], onDelete: Cascade)
+  following User @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
 }

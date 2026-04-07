@@ -44,6 +44,22 @@ export default async function userRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid user ID" });
     }
 
+    // Resolve caller identity (optional auth)
+    let callerId: number | null = null;
+    const authHeader = request.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const jwt = await import("jsonwebtoken");
+        const decoded = jwt.default.verify(
+          authHeader.slice(7),
+          process.env.JWT_SECRET || "dev-secret"
+        ) as { userId: number };
+        callerId = decoded.userId;
+      } catch {
+        // invalid token — treat as unauthenticated
+      }
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -52,11 +68,20 @@ export default async function userRoutes(app: FastifyInstance) {
         bio: true,
         avatarUrl: true,
         createdAt: true,
-        _count: { select: { stories: true } },
+        _count: { select: { stories: true, followers: true, following: true } },
       },
     });
     if (!user) {
       return reply.status(404).send({ error: "User not found" });
+    }
+
+    // Check if caller follows this user
+    let isFollowing = false;
+    if (callerId !== null && callerId !== userId) {
+      const follow = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: callerId, followingId: userId } },
+      });
+      isFollowing = !!follow;
     }
 
     const stories = await prisma.story.findMany({
@@ -70,11 +95,123 @@ export default async function userRoutes(app: FastifyInstance) {
 
     return reply.send({
       ...user,
+      followersCount: user._count.followers,
+      followingCount: user._count.following,
+      isFollowing,
       stories: stories.map((s) => ({
         ...s,
         tags: s.tags.map((st) => st.tag),
       })),
     });
+  });
+
+  // POST /api/users/:id/follow — follow a user
+  app.post("/:id/follow", { preHandler: [authenticate] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const targetId = Number(id);
+    if (isNaN(targetId)) {
+      return reply.status(400).send({ error: "Invalid user ID" });
+    }
+
+    const followerId = request.user!.userId;
+    if (followerId === targetId) {
+      return reply.status(400).send({ error: "You cannot follow yourself" });
+    }
+
+    const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+    if (!target) {
+      return reply.status(404).send({ error: "User not found" });
+    }
+
+    try {
+      await prisma.follow.create({
+        data: { followerId, followingId: targetId },
+      });
+    } catch (err: any) {
+      if (err?.code === "P2002") {
+        return reply.status(409).send({ error: "Already following this user" });
+      }
+      throw err;
+    }
+
+    return reply.status(200).send({ following: true });
+  });
+
+  // DELETE /api/users/:id/follow — unfollow a user
+  app.delete("/:id/follow", { preHandler: [authenticate] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const targetId = Number(id);
+    if (isNaN(targetId)) {
+      return reply.status(400).send({ error: "Invalid user ID" });
+    }
+
+    const followerId = request.user!.userId;
+
+    await prisma.follow.deleteMany({
+      where: { followerId, followingId: targetId },
+    });
+
+    return reply.status(204).send();
+  });
+
+  // GET /api/users/:id/following — list users this person follows (public)
+  app.get("/:id/following", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const userId = Number(id);
+    if (isNaN(userId)) {
+      return reply.status(400).send({ error: "Invalid user ID" });
+    }
+
+    // Resolve caller identity for isFollowing flag (optional auth)
+    let callerId: number | null = null;
+    const authHeader = request.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const jwt = await import("jsonwebtoken");
+        const decoded = jwt.default.verify(
+          authHeader.slice(7),
+          process.env.JWT_SECRET || "dev-secret"
+        ) as { userId: number };
+        callerId = decoded.userId;
+      } catch {
+        // invalid token — treat as unauthenticated
+      }
+    }
+
+    const follows = await prisma.follow.findMany({
+      where: { followerId: userId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        following: {
+          select: {
+            id: true,
+            username: true,
+            bio: true,
+            avatarUrl: true,
+            _count: { select: { stories: true, followers: true } },
+          },
+        },
+      },
+    });
+
+    const followingIds = follows.map((f) => f.following.id);
+
+    // Bulk-check which of these users the caller already follows
+    let callerFollowsSet = new Set<number>();
+    if (callerId !== null && followingIds.length > 0) {
+      const callerFollows = await prisma.follow.findMany({
+        where: { followerId: callerId, followingId: { in: followingIds } },
+        select: { followingId: true },
+      });
+      callerFollowsSet = new Set(callerFollows.map((f) => f.followingId));
+    }
+
+    return reply.send(
+      follows.map((f) => ({
+        ...f.following,
+        isFollowing: callerFollowsSet.has(f.following.id),
+      }))
+    );
   });
 
   // POST /api/users/me/avatar-upload-url — get a presigned R2 upload URL

@@ -55,6 +55,62 @@ function decodeFtsCursor(cursor: string): number {
 }
 
 export default async function storyRoutes(app: FastifyInstance) {
+  // GET /api/stories/feed — personalized feed (auth required)
+  // MUST be registered before /:id to avoid route clash
+  app.get("/feed", { preHandler: [authenticate] }, async (request, reply) => {
+    const feedQuerySchema = z.object({
+      page:  z.coerce.number().int().positive().optional().default(1),
+      limit: z.coerce.number().int().min(1).max(50).optional().default(12),
+    });
+
+    const parsed = feedQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: parsed.error.flatten() });
+    }
+    const { page, limit } = parsed.data;
+    const userId = request.user!.userId;
+
+    // Get IDs of authors the current user follows
+    const followed = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    const followedIds = followed.map((f) => f.followingId);
+
+    if (followedIds.length === 0) {
+      return reply.send({ stories: [], total: 0, page, totalPages: 0 });
+    }
+
+    const where = { status: "PUBLISHED" as const, authorId: { in: followedIds } };
+
+    const [stories, total] = await Promise.all([
+      prisma.story.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: { select: { id: true, username: true, avatarUrl: true } },
+          tags: { include: { tag: true } },
+          series: { orderBy: { order: "asc" }, include: { series: { select: { id: true, title: true, slug: true } } } },
+          _count: { select: { comments: true, likes: true } },
+        },
+      }),
+      prisma.story.count({ where }),
+    ]);
+
+    return reply.send({
+      stories: stories.map((s) => ({
+        ...s,
+        tags: s.tags.map((st) => st.tag),
+        series: s.series.map((ss) => ({ order: ss.order, series: ss.series })),
+      })),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    });
+  });
+
   // GET /api/stories — list published stories
   app.get("/", async (request, reply) => {
     const parsed = listQuerySchema.safeParse(request.query);

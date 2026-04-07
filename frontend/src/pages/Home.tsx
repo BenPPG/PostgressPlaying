@@ -13,6 +13,11 @@ import {
   Text,
   VStack,
   Spinner,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
 } from "@chakra-ui/react";
 import api from "../api/client";
 import StoryGrid from "../components/StoryGrid";
@@ -25,6 +30,8 @@ export default function Home() {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [activeTag, setActiveTag] = useState("");
+  const [feedPage, setFeedPage] = useState(1);
+  const [activeSection, setActiveSection] = useState<"discover" | "following">("discover");
 
   const { data: tagsData } = useQuery({
     queryKey: ["tags"],
@@ -43,6 +50,13 @@ export default function Home() {
       });
       return response.data;
     },
+  });
+
+  const { data: feedData, isLoading: feedLoading } = useQuery<StoriesResponse>({
+    queryKey: ["feed", feedPage],
+    queryFn: () =>
+      api.get<StoriesResponse>("/stories/feed", { params: { page: feedPage, limit: 12 } }).then((r) => r.data),
+    enabled: !!user && activeSection === "following",
   });
 
   const stories = useMemo<StoryType[]>(() => data?.stories ?? [], [data?.stories]);
@@ -261,79 +275,128 @@ export default function Home() {
         </Box>
       </SimpleGrid>
 
-      {tagsData && tagsData.length > 0 && (
-        <HStack mb={4} flexWrap="wrap" spacing={2}>
-          <Tag
-            size="md"
-            variant={activeTag === "" ? "solid" : "outline"}
-            colorScheme="purple"
-            cursor="pointer"
-            onClick={() => {
-              setActiveTag("");
-              setPage(1);
-            }}
-          >
-            All
-          </Tag>
-          {tagsData.map((t: TagType) => (
-            <Tag
-              key={t.id}
-              size="md"
-              variant={activeTag === t.slug ? "solid" : "outline"}
-              colorScheme="purple"
-              cursor="pointer"
-              onClick={() => {
-                setActiveTag(t.slug);
-                setPage(1);
-              }}
-            >
-              {t.name}
-            </Tag>
-          ))}
-        </HStack>
-      )}
-
-      {isLoading ? (
-        <Center py={12}>
-          <Spinner size="xl" color={c.accent} />
-        </Center>
-      ) : isError ? (
-        <Center py={12}>
-          <Text color={c.error}>Failed to load stories. Please refresh.</Text>
-        </Center>
-      ) : stories.length === 0 ? (
-        <Center py={12}>
-          <Text color={c.subtext}>No stories found for current filters.</Text>
-        </Center>
-      ) : (
-        <VStack align="stretch" spacing={8} id="stories">
-          <StoryGrid title="Featured Stories" stories={featuredStories} columns={{ base: 1, md: 3 }} noStoriesText="No featured stories." />
-
-          <StoryGrid title="Trending Right Now" stories={trendingStories} columns={{ base: 1, md: 2, lg: 3 }} noStoriesText="No trending stories." />
-
-          <PaginatedStoryList
-            title={`All Stories (${stats.totalStories})`}
-            stories={stories}
-            page={page}
-            totalPages={stats.totalPages}
-            onPageChange={setPage}
-            noStoriesText="No stories found for all stories."
-          />
-
-          <Box>
-            <Heading id="top-authors" size="md" mb={3}>
-              Authors on this page
-            </Heading>
-            <HStack wrap="wrap" spacing={2}>
-              {topAuthors.map(([author, count]) => (
-                <Tag key={author} size="md" colorScheme="teal" borderRadius="full">
-                  {author} ({count})
+      <Tabs
+        colorScheme="purple"
+        index={user && activeSection === "following" ? 1 : 0}
+        onChange={(i) => {
+          if (!user) return;
+          setActiveSection(i === 1 ? "following" : "discover");
+        }}
+      >
+        {user && (
+          <TabList mb={4}>
+            <Tab>Discover</Tab>
+            <Tab>Following</Tab>
+          </TabList>
+        )}
+        <TabPanels>
+          {/* Discover tab */}
+          <TabPanel px={0} py={0}>
+            {tagsData && tagsData.length > 0 && (
+              <HStack mb={4} flexWrap="wrap" spacing={2}>
+                <Tag
+                  size="md"
+                  variant={activeTag === "" ? "solid" : "outline"}
+                  colorScheme="purple"
+                  cursor="pointer"
+                  onClick={() => {
+                    setActiveTag("");
+                    setPage(1);
+                  }}
+                >
+                  All
                 </Tag>
-              ))}
-            </HStack>
-          </Box>
-        </VStack>
-      )}
+                {tagsData.map((t: TagType) => (
+                  <Tag
+                    key={t.id}
+                    size="md"
+                    variant={activeTag === t.slug ? "solid" : "outline"}
+                    colorScheme="purple"
+                    cursor="pointer"
+                    onClick={() => {
+                      setActiveTag(t.slug);
+                      setPage(1);
+                    }}
+                  >
+                    {t.name}
+                  </Tag>
+                ))}
+              </HStack>
+            )}
+
+            {isLoading ? (
+              <Center py={12}>
+                <Spinner size="xl" color={c.accent} />
+              </Center>
+            ) : isError ? (
+              <Center py={12}>
+                <Text color={c.error}>Failed to load stories. Please refresh.</Text>
+              </Center>
+            ) : stories.length === 0 ? (
+              <Center py={12}>
+                <Text color={c.subtext}>No stories found for current filters.</Text>
+              </Center>
+            ) : (
+              <VStack align="stretch" spacing={8} id="stories">
+                <StoryGrid title="Featured Stories" stories={featuredStories} columns={{ base: 1, md: 3 }} noStoriesText="No featured stories." />
+
+                <StoryGrid title="Trending Right Now" stories={trendingStories} columns={{ base: 1, md: 2, lg: 3 }} noStoriesText="No trending stories." />
+
+                <PaginatedStoryList
+                  title={`All Stories (${stats.totalStories})`}
+                  stories={stories}
+                  page={page}
+                  totalPages={stats.totalPages}
+                  onPageChange={setPage}
+                  noStoriesText="No stories found for all stories."
+                />
+
+                <Box>
+                  <Heading id="top-authors" size="md" mb={3}>
+                    Authors on this page
+                  </Heading>
+                  <HStack wrap="wrap" spacing={2}>
+                    {topAuthors.map(([author, count]) => (
+                      <Tag key={author} size="md" colorScheme="teal" borderRadius="full">
+                        {author} ({count})
+                      </Tag>
+                    ))}
+                  </HStack>
+                </Box>
+              </VStack>
+            )}
+          </TabPanel>
+
+          {/* Following tab */}
+          <TabPanel px={0} py={0}>
+            {feedLoading ? (
+              <Center py={12}>
+                <Spinner size="xl" color={c.accent} />
+              </Center>
+            ) : !feedData || feedData.stories.length === 0 ? (
+              <Center py={12}>
+                <VStack spacing={3}>
+                  <Text color={c.subtext} fontSize="lg">
+                    Your following feed is empty.
+                  </Text>
+                  <Text color={c.meta} fontSize="sm">
+                    Visit an author's profile and hit Follow to see their stories here.
+                  </Text>
+                </VStack>
+              </Center>
+            ) : (
+              <PaginatedStoryList
+                title={`Stories from people you follow (${feedData.total})`}
+                stories={feedData.stories}
+                page={feedPage}
+                totalPages={feedData.totalPages}
+                onPageChange={setFeedPage}
+                noStoriesText="No stories in your feed."
+              />
+            )}
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </Box>
   );
 }
