@@ -1,32 +1,91 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { faker } from "@faker-js/faker";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  // Create tags
-  const tagData = [
-    { name: "Fantasy", slug: "fantasy" },
-    { name: "Science Fiction", slug: "science-fiction" },
-    { name: "Horror", slug: "horror" },
-    { name: "Romance", slug: "romance" },
-    { name: "Mystery", slug: "mystery" },
-    { name: "Comedy", slug: "comedy" },
-    { name: "Drama", slug: "drama" },
-    { name: "Thriller", slug: "thriller" },
-  ];
+faker.seed(12345);
 
-  for (const tag of tagData) {
+const TAGS = [
+  { name: "Fantasy", slug: "fantasy" },
+  { name: "Science Fiction", slug: "science-fiction" },
+  { name: "Horror", slug: "horror" },
+  { name: "Romance", slug: "romance" },
+  { name: "Mystery", slug: "mystery" },
+  { name: "Comedy", slug: "comedy" },
+  { name: "Drama", slug: "drama" },
+  { name: "Thriller", slug: "thriller" },
+  { name: "Adventure", slug: "adventure" },
+  { name: "Historical", slug: "historical" },
+  { name: "Supernatural", slug: "supernatural" },
+  { name: "Slice of Life", slug: "slice-of-life" },
+];
+
+const STORY_STATUSES = ["PUBLISHED", "DRAFT"] as const;
+
+const USER_COUNT = 50;
+const STORIES_PER_USER_MIN = 3;
+const STORIES_PER_USER_MAX = 12;
+const COMMENTS_PER_STORY_MIN = 0;
+const COMMENTS_PER_STORY_MAX = 8;
+const LIKES_PER_STORY_MIN = 0;
+const LIKES_PER_STORY_MAX = 20;
+const FOLLOWS_PER_USER_MIN = 1;
+const FOLLOWS_PER_USER_MAX = 8;
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function pickRandomUnique<T>(arr: T[], count: number): T[] {
+  const copy = [...arr];
+  const result: T[] = [];
+
+  while (copy.length > 0 && result.length < count) {
+    const index = Math.floor(Math.random() * copy.length);
+    result.push(copy.splice(index, 1)[0]);
+  }
+
+  return result;
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function createStoryContent(title: string): string {
+  const paragraphs = Array.from({ length: randomInt(4, 9) }, () =>
+    faker.lorem.paragraphs(randomInt(1, 3), "\n\n")
+  );
+
+  return `${title}\n\n${paragraphs.join("\n\n")}`;
+}
+
+async function seedTags() {
+  for (const tag of TAGS) {
     await prisma.tag.upsert({
       where: { slug: tag.slug },
-      update: {},
+      update: { name: tag.name },
       create: tag,
     });
   }
-  console.log("Tags seeded");
 
-  // Create admin user
+  return prisma.tag.findMany();
+}
+
+async function seedFixedUsers() {
   const adminHash = await bcrypt.hash("admin123!", 12);
+  const userHash = await bcrypt.hash("user1234!", 12);
+
   const admin = await prisma.user.upsert({
     where: { email: "admin@stories.dev" },
     update: {},
@@ -38,11 +97,8 @@ async function main() {
       bio: "Platform administrator",
     },
   });
-  console.log("Admin user: admin@stories.dev / admin123!");
 
-  // Create sample user
-  const userHash = await bcrypt.hash("user1234!", 12);
-  const user = await prisma.user.upsert({
+  const demoUser = await prisma.user.upsert({
     where: { email: "writer@stories.dev" },
     update: {},
     create: {
@@ -52,140 +108,308 @@ async function main() {
       bio: "I love writing short stories!",
     },
   });
-  console.log("Sample user: writer@stories.dev / user1234!");
 
-  // Create sample stories
-  const tags = await prisma.tag.findMany();
-  const fantasyTag = tags.find((t) => t.slug === "fantasy");
-  const scifiTag = tags.find((t) => t.slug === "science-fiction");
-  const mysteryTag = tags.find((t) => t.slug === "mystery");
+  console.log("Fixed users seeded");
+  return [admin, demoUser];
+}
 
-  const stories = [
-    {
-      title: "The Last Dragon's Keeper",
-      summary: "In a world where dragons are fading, one keeper must make an impossible choice.",
-      content: `The mountain trembled as Elara climbed the final steps to the dragon's lair. Smoke curled from between the ancient stones, but it was thinner now—barely a wisp where once it had been a torrent.
+async function seedGeneratedUsers(passwordHash: string) {
+  const users = [];
 
-"You came," the dragon said. Its voice was like wind through a canyon, resonant and deep, but so much quieter than she remembered.
+  for (let i = 1; i <= USER_COUNT; i++) {
+    const username = faker.internet.username().toLowerCase() + i;
+    const email = `user${i}@stories.dev`;
 
-Elara set down her pack and looked at the creature that had been her charge for thirty years. Pyraxis was curled around the last clutch of eggs—seven perfect spheres of obsidian that would never hatch.
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        email,
+        username,
+        passwordHash,
+        bio: faker.lorem.sentence(),
+      },
+    });
 
-"The council has made their decision," she said, her voice steady despite the ache in her chest. "They want to move you to the sanctuary."
+    users.push(user);
+  }
 
-The dragon's golden eye, larger than Elara's entire body, fixed on her. "A cage. A prettier word for a cage."
+  console.log(`${users.length} generated users seeded`);
+  return users;
+}
 
-"A protected space. The hunters—"
+async function seedStories(users: { id: number }[], tags: { id: number }[]) {
+  const allStories: { id: number; authorId: number; title: string }[] = [];
 
-"Let them come." Pyraxis shifted, and the cavern groaned. But even as defiant words left his throat, Elara could see the tremor in his wings. The scales along his flank had dulled from brilliant crimson to a tired rust.
+  for (const user of users) {
+    const storyCount = randomInt(STORIES_PER_USER_MIN, STORIES_PER_USER_MAX);
 
-She sat beside him in silence as the sun set through the cave mouth, painting the sky in the colours of dragon fire—one last gift from a world that was forgetting them.
+    for (let i = 0; i < storyCount; i++) {
+      const title = faker.book.title();
+      const summary = faker.lorem.sentences(2);
+      const content = createStoryContent(title);
+      const status = Math.random() < 0.8 ? "PUBLISHED" : "DRAFT";
+      const selectedTags = pickRandomUnique(tags, randomInt(1, 3));
 
-"I'll stay," she whispered. "Whatever you choose, I'll stay."
-
-The dragon closed his great eye and breathed out a plume of warmth that wrapped around her like a blanket.
-
-"I know," he said. "You always do."`,
-      status: "PUBLISHED" as const,
-      authorId: user.id,
-      tagIds: fantasyTag ? [fantasyTag.id] : [],
-    },
-    {
-      title: "Signal from Proxima",
-      summary: "When Earth receives a message from the nearest star, nothing is ever the same.",
-      content: `Dr. Mei Chen stared at the monitor and felt the floor drop from under her feet.
-
-The signal had arrived at 3:47 AM, slipping in through the noise like a whisper at a party. The automated systems had flagged it. Then flagged it again. Then flagged it a third time and woken her up.
-
-"This can't be real," she muttered, running the analysis for the fourth time. But the numbers didn't lie. The signal came from Proxima Centauri, 4.24 light-years away, and it was structured—unmistakably, impossibly structured.
-
-By dawn, the lab was full. By noon, the president had called. By evening, every major news outlet on Earth had the same headline: WE ARE NOT ALONE.
-
-But Mei couldn't celebrate. Because buried in the signal, past the mathematical greetings and the periodic table confirmations, past the binary art that showed bipedal beings pointing at a star, there was a timestamp.
-
-The message had been sent 4.24 years ago. That matched the speed of light, which meant no faster-than-light communication. Standard physics. That should have been reassuring.
-
-Except the message ended with coordinates. Earth's coordinates. And a date—one that hadn't happened yet.
-
-Three months from now.
-
-Along with a single word that, across every translation matrix they could devise, meant the same thing:
-
-Run.`,
-      status: "PUBLISHED" as const,
-      authorId: user.id,
-      tagIds: scifiTag ? [scifiTag.id] : [],
-    },
-    {
-      title: "The Missing Hour",
-      summary: "A detective investigates the strangest case of her career.",
-      content: `Everyone in town lost an hour on Tuesday.
-
-Not the daylight-savings kind. Not a collective nap. Between 2:00 PM and 3:00 PM, every single resident of Millhaven experienced... nothing. Security cameras showed static. Car dashcams recorded blank frames. GPS logs showed vehicles that didn't move. And when 3:00 PM arrived, everyone simply continued what they'd been doing as if no time had passed at all.
-
-Detective Rosa Vega was the first to notice something was wrong, because she'd been on the phone with her sister in Portland when it happened. Her sister's call log showed a fifty-eight-minute silence that Rosa had no memory of.
-
-"What were you doing?" her sister asked.
-"Talking to you," Rosa said. And she believed it.
-
-The investigation, if you could call it that, went nowhere fast. There was no crime, technically. No one was hurt. Nothing was stolen (that anyone knew of). The mayor wanted it buried. The feds sent someone who asked a lot of questions and took a lot of notes and then left without sharing any of them.
-
-But Rosa kept digging, because Rosa always kept digging. And three weeks later, she found the one person whose camera hadn't gone to static: old Mr. Huang, who'd built his own security system from Soviet-era parts that apparently didn't respond to whatever frequency had silenced everything else.
-
-His footage showed the town square, empty and silent at 2:15 PM.
-
-Empty except for a door that stood in the middle of the park, unattached to any building, casting a shadow that pointed the wrong way.
-
-And it was open.`,
-      status: "PUBLISHED" as const,
-      authorId: admin.id,
-      tagIds: mysteryTag ? [mysteryTag.id] : [],
-    },
-  ];
-
-  for (const { tagIds, ...storyData } of stories) {
-    const existing = await prisma.story.findFirst({ where: { title: storyData.title } });
-    if (!existing) {
-      await prisma.story.create({
-        data: {
-          ...storyData,
-          tags: { create: tagIds.map((tagId) => ({ tagId })) },
+      const existing = await prisma.story.findFirst({
+        where: {
+          title,
+          authorId: user.id,
         },
+      });
+
+      let story;
+
+      if (existing) {
+        story = existing;
+      } else {
+        story = await prisma.story.create({
+          data: {
+            title,
+            summary,
+            content,
+            status,
+            authorId: user.id,
+            tags: {
+              create: selectedTags.map((tag) => ({
+                tagId: tag.id,
+              })),
+            },
+          },
+        });
+      }
+
+      allStories.push({
+        id: story.id,
+        authorId: story.authorId,
+        title: story.title,
       });
     }
   }
-  console.log("Sample stories seeded");
 
-  // Add some comments
-  const allStories = await prisma.story.findMany();
-  for (const story of allStories) {
-    const existingComments = await prisma.comment.count({ where: { storyId: story.id } });
-    if (existingComments === 0) {
+  console.log(`${allStories.length} stories seeded`);
+  return allStories;
+}
+
+async function seedComments(
+  users: { id: number }[],
+  stories: { id: number; authorId: number }[]
+) {
+  for (const story of stories) {
+    const count = randomInt(COMMENTS_PER_STORY_MIN, COMMENTS_PER_STORY_MAX);
+    const commenters = pickRandomUnique(
+      users.filter((u) => u.id !== story.authorId),
+      Math.min(count, users.length - 1)
+    );
+
+    for (const commenter of commenters) {
       await prisma.comment.create({
         data: {
-          content: "Great story! Really enjoyed reading this.",
+          content: faker.lorem.sentences(randomInt(1, 3)),
           storyId: story.id,
-          authorId: story.authorId === admin.id ? user.id : admin.id,
+          authorId: commenter.id,
         },
       });
     }
   }
-  console.log("Sample comments seeded");
 
-  // Add some likes
-  for (const story of allStories) {
-    const existingLikes = await prisma.like.count({ where: { storyId: story.id } });
-    if (existingLikes === 0) {
-      await prisma.like.create({
-        data: {
+  console.log("Comments seeded");
+}
+
+async function seedLikes(
+  users: { id: number }[],
+  stories: { id: number; authorId: number }[]
+) {
+  for (const story of stories) {
+    const likeCount = Math.min(
+      randomInt(LIKES_PER_STORY_MIN, LIKES_PER_STORY_MAX),
+      users.length - 1
+    );
+
+    const likers = pickRandomUnique(
+      users.filter((u) => u.id !== story.authorId),
+      likeCount
+    );
+
+    for (const liker of likers) {
+      await prisma.like.upsert({
+        where: {
+          storyId_userId: {
+            userId: liker.id,
+            storyId: story.id,
+          },
+        },
+        update: {},
+        create: {
+          userId: liker.id,
           storyId: story.id,
-          userId: story.authorId === admin.id ? user.id : admin.id,
         },
       });
     }
   }
-  console.log("Sample likes seeded");
+
+  console.log("Likes seeded");
+}
+
+async function seedFollows(users: { id: number }[]) {
+  for (const user of users) {
+    const followTargets = pickRandomUnique(
+      users.filter((u) => u.id !== user.id),
+      randomInt(FOLLOWS_PER_USER_MIN, FOLLOWS_PER_USER_MAX)
+    );
+
+    for (const target of followTargets) {
+      await prisma.follow.upsert({
+        where: {
+          followerId_followingId: {
+            followerId: user.id,
+            followingId: target.id,
+          },
+        },
+        update: {},
+        create: {
+          followerId: user.id,
+          followingId: target.id,
+        },
+      });
+    }
+  }
+
+  console.log("Follows seeded");
+}
+
+async function seedSeries(
+  users: { id: number }[],
+  stories: { id: number; authorId: number; title: string }[]
+) {
+  for (const user of users) {
+    const userStories = stories.filter((s) => s.authorId === user.id);
+
+    if (userStories.length < 2) continue;
+    if (Math.random() > 0.4) continue;
+
+    const seriesTitle = faker.book.series();
+    const seriesSlug = `${slugify(seriesTitle)}-${faker.string.alphanumeric(5).toLowerCase()}`;
+
+    const existing = await prisma.series.findUnique({
+      where: { slug: seriesSlug },
+    });
+
+    if (existing) continue;
+
+    const chosenStories = pickRandomUnique(
+      userStories,
+      randomInt(2, Math.min(5, userStories.length))
+    );
+
+    await prisma.series.create({
+      data: {
+        title: seriesTitle,
+        slug: seriesSlug,
+        description: faker.lorem.paragraph(),
+        authorId: user.id,
+        stories: {
+          create: chosenStories.map((story, index) => ({
+            storyId: story.id,
+            order: index + 1,
+          })),
+        },
+      },
+    });
+  }
+
+  console.log("Series seeded");
+}
+
+async function seedStoryLists(
+  users: { id: number }[],
+  stories: { id: number }[]
+) {
+  for (const user of users) {
+    const defaultLists = [
+      { name: "Favorites", isDefault: true, isPublic: false },
+      { name: "Read Later", isDefault: true, isPublic: false },
+    ];
+
+    for (const list of defaultLists) {
+      const exists = await prisma.storyList.findFirst({
+        where: { ownerId: user.id, name: list.name },
+      });
+
+      if (!exists) {
+        await prisma.storyList.create({
+          data: {
+            name: list.name,
+            isDefault: list.isDefault,
+            isPublic: list.isPublic,
+            ownerId: user.id,
+          },
+        });
+      }
+    }
+
+    if (Math.random() < 0.35) {
+      const publicListName = faker.helpers.arrayElement([
+        "Staff Picks",
+        "Late Night Reads",
+        "Best Worldbuilding",
+        "Dark Favourites",
+        "Weekend Reads",
+      ]);
+
+      const exists = await prisma.storyList.findFirst({
+        where: { ownerId: user.id, name: publicListName },
+      });
+
+      if (!exists) {
+        const selectedStories = pickRandomUnique(
+          stories.filter(() => true),
+          randomInt(2, 6)
+        );
+
+        await prisma.storyList.create({
+          data: {
+            name: publicListName,
+            description: faker.lorem.sentence(),
+            isPublic: true,
+            isDefault: false,
+            ownerId: user.id,
+            items: {
+              create: selectedStories.map((story) => ({
+                storyId: story.id,
+              })),
+            },
+          },
+        });
+      }
+    }
+  }
+
+  console.log("Story lists seeded");
+}
+
+async function main() {
+  console.log("Seeding started...");
+
+  const tags = await seedTags();
+
+  const fixedUsers = await seedFixedUsers();
+  const commonPasswordHash = await bcrypt.hash("password123!", 12);
+  const generatedUsers = await seedGeneratedUsers(commonPasswordHash);
+
+  const users = [...fixedUsers, ...generatedUsers];
+
+  const stories = await seedStories(users, tags);
+  await seedComments(users, stories);
+  await seedLikes(users, stories);
+  await seedFollows(users);
+  await seedSeries(users, stories);
+  await seedStoryLists(users, stories);
 
   console.log("Seed complete!");
+  console.log("Admin user: admin@stories.dev / admin123!");
+  console.log("Demo user: writer@stories.dev / user1234!");
+  console.log("Generated users: user1@stories.dev ... user50@stories.dev / password123!");
 }
 
 main()
@@ -193,4 +417,6 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

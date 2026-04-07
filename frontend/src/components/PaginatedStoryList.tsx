@@ -1,4 +1,5 @@
-import { Box, Button, Flex, Heading, HStack, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, HStack, Link, Text, VStack } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 import { FaEye, FaHeart, FaComment } from "react-icons/fa";
 import type { StoryType } from "../types/story";
 import { useColors } from "../hooks/useColors";
@@ -30,9 +31,11 @@ function HorizontalStoryCard({ story }: { story: StoryType }) {
       transition="box-shadow 0.2s"
     >
       <Box flex="1">
-        <Text fontWeight="bold" fontSize="lg" color={c.accent}>
-          {story.title}
-        </Text>
+        <Link as={RouterLink} to={`/stories/${story.id}`} _hover={{ textDecoration: "none" }}>
+          <Text fontWeight="bold" fontSize="lg" color={c.accent} _hover={{ color: "purple.600" }}>
+            {story.title}
+          </Text>
+        </Link>
         {story.summary && (
           <Text fontSize="sm" color={c.subtext} noOfLines={2}>
             {story.summary}
