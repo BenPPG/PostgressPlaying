@@ -20,12 +20,6 @@ import { toast } from "sonner";
 import api from "../api/client";
 import { useColors } from "../hooks/useColors";
 
-const statusColors: Record<string, string> = {
-  DRAFT: "yellow",
-  PUBLISHED: "green",
-  ARCHIVED: "gray",
-};
-
 export default function AdminPanel() {
   const queryClient = useQueryClient();
   const c = useColors();
