@@ -51,7 +51,7 @@ interface SortableStoryRowProps {
   onRemove: (storyId: number) => void;
 }
 
-function SortableStoryRow({ story, seriesId, onRemove }: SortableStoryRowProps) {
+function SortableStoryRow({ story, seriesId: _seriesId, onRemove }: SortableStoryRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: story.id,
   });
