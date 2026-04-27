@@ -5,6 +5,7 @@
     "buildCommand": "pnpm install --no-frozen-lockfile && pnpm run build"
   },
   "deploy": {
-    "staticDir": "dist"
+    "startCommand": "npx serve dist -s",
+    "restartPolicyType": "ON_FAILURE"
   }
 }
