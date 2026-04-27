@@ -20,7 +20,7 @@ function getR2Client() {
     region: "auto",
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId, secretAccessKey },
-    requestChecksumCalculation: "when_required",
+    requestChecksumCalculation: "WHEN_REQUIRED",
   });
 }
 
