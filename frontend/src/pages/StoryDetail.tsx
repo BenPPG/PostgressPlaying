@@ -3,7 +3,6 @@ import { useParams, Link as RouterLink } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
-  Heading,
   Text,
   HStack,
   VStack,
@@ -216,7 +215,6 @@ export default function StoryDetail() {
   const seriesEntries: { order: number; series: { id: number; title: string; slug: string } }[] =
     story.series ?? [];
 
-  const headingColor = c.heading;
   const cardBg = c.cardBg;
   const borderColor = c.border;
 
